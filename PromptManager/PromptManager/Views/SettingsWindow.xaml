@@ -1,0 +1,28 @@
+<Window x:Class="PromptManager.Views.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Settings" Height="280" Width="420"
+        Icon="pack://application:,,,/Resources/app.ico"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize">
+    <StackPanel Margin="16">
+        <CheckBox Content="Start Prompt Manager when Windows starts"
+                  IsChecked="{Binding StartWithWindows, Mode=TwoWay}"
+                  Margin="0,0,0,16"/>
+
+        <TextBlock Text="Global hotkey" FontWeight="Bold" Margin="0,0,0,4"/>
+        <TextBox x:Name="HotkeyBox"
+                 Text="{Binding HotkeyDisplay, Mode=OneWay}"
+                 IsReadOnly="True"
+                 Padding="8"
+                 PreviewKeyDown="HotkeyBox_PreviewKeyDown"/>
+        <TextBlock Text="Click the box above, then press the new key combination."
+                   Foreground="Gray" FontSize="11" Margin="0,4,0,12"/>
+
+        <StackPanel Orientation="Horizontal">
+            <Button Content="Apply" Command="{Binding ApplyHotkeyCommand}" Padding="14,4"/>
+        </StackPanel>
+
+        <TextBlock Text="{Binding StatusMessage}" Margin="0,12,0,0" Foreground="Gray"/>
+    </StackPanel>
+</Window>
