@@ -107,14 +107,6 @@ public sealed class PromptRepository
         return true;
     }
 
-    /// <summary>Shared ordering used by both the popup's grouping and the Manager's sort tabs.</summary>
-    public static IEnumerable<Prompt> OrderBy(IEnumerable<Prompt> prompts, PromptSortMode mode) => mode switch
-    {
-        PromptSortMode.MostUsed => prompts.OrderByDescending(p => p.UsageCount).ThenBy(p => p.Title, StringComparer.OrdinalIgnoreCase),
-        PromptSortMode.AZ => prompts.OrderBy(p => p.Title, StringComparer.OrdinalIgnoreCase),
-        _ => prompts.OrderByDescending(p => p.LastUsedAt ?? DateTimeOffset.MinValue).ThenByDescending(p => p.CreatedAt),
-    };
-
     /// <summary>
     /// Fills <paramref name="results"/> (cleared first) with prompts matching <paramref name="query"/>.
     /// Titles are fuzzy-matched (VS Code Quick Open style) and ranked by score, above any body/tag

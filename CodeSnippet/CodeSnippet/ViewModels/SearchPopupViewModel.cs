@@ -1,10 +1,13 @@
 using System.Collections.ObjectModel;
+using System.IO;
+using System.Windows;
 using System.Windows.Threading;
 using CodeSnippet.Models;
 using CodeSnippet.Services;
 using CodeSnippet.ViewModels;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Win32;
 
 namespace CodeSnippet.ViewModels;
 
@@ -35,10 +38,36 @@ public sealed partial class SearchPopupViewModel : ObservableObject
     private int _totalCount;
 
     [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(EditSelectedCommand))]
+    [NotifyCanExecuteChangedFor(nameof(DeleteSelectedCommand))]
     private Prompt? _selectedPrompt;
 
     [ObservableProperty]
     private int _previewCharCount;
+
+    [ObservableProperty]
+    private bool _isEditing;
+
+    /// <summary>True while a MessageBox/file dialog owned by this window is up, so the deactivation-hide
+    /// behavior (click-away dismiss) doesn't yank the popup out from under a modal the user is answering.</summary>
+    [ObservableProperty]
+    private bool _isModalOpen;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(SaveEditCommand))]
+    private string _editTitle = string.Empty;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(SaveEditCommand))]
+    private string _editBody = string.Empty;
+
+    [ObservableProperty]
+    private string _editTags = string.Empty;
+
+    [ObservableProperty]
+    private string _editStatusMessage = string.Empty;
+
+    private Prompt? _editingPrompt;
 
     [ObservableProperty]
     private string _copiedTitle = string.Empty;
@@ -68,12 +97,6 @@ public sealed partial class SearchPopupViewModel : ObservableObject
 
     public event Action? Cancelled;
 
-    /// <summary>Enter with no match (or on the first-run screen) — open the Manager with this title prefilled.</summary>
-    public event Action<string>? CreatePromptRequested;
-
-    /// <summary>'I' pressed on the first-run screen — open the Manager and trigger Import directly.</summary>
-    public event Action? ImportRequested;
-
     public SearchPopupViewModel(PromptRepository repository, PasteService pasteService, bool showPreviewPane)
     {
         _repository = repository;
@@ -87,6 +110,8 @@ public sealed partial class SearchPopupViewModel : ObservableObject
     public void Reset()
     {
         _copiedTimer.Stop();
+        IsEditing = false;
+        _editingPrompt = null;
         Query = string.Empty;
         RefreshResults();
     }
@@ -101,10 +126,16 @@ public sealed partial class SearchPopupViewModel : ObservableObject
     {
         IsHeaderVisible = value is PopupState.Resting or PopupState.Typing or PopupState.NoMatch;
         IsResultsVisible = value is PopupState.Resting or PopupState.Typing;
-        IsPreviewVisible = IsResultsVisible && ShowPreviewPane;
+        RecomputePreviewVisibility();
     }
 
-    partial void OnShowPreviewPaneChanged(bool value) => IsPreviewVisible = IsResultsVisible && value;
+    partial void OnShowPreviewPaneChanged(bool value) => RecomputePreviewVisibility();
+
+    // While editing, the preview/edit pane is the only surface for CRUD (there's no separate Manager
+    // window anymore) — it must stay visible even if the user turned the preview pane off in Settings.
+    partial void OnIsEditingChanged(bool value) => RecomputePreviewVisibility();
+
+    private void RecomputePreviewVisibility() => IsPreviewVisible = IsEditing || (IsResultsVisible && ShowPreviewPane);
 
     partial void OnSelectedIndexChanged(int value) => SyncSelectionHighlight(value);
 
@@ -313,7 +344,7 @@ public sealed partial class SearchPopupViewModel : ObservableObject
         {
             case PopupState.NoMatch:
             case PopupState.FirstRun:
-                CreatePromptRequested?.Invoke(Query.Trim());
+                StartNewPromptWithTitle(Query.Trim());
                 break;
             case PopupState.Copied:
                 break;
@@ -365,7 +396,195 @@ public sealed partial class SearchPopupViewModel : ObservableObject
 
     /// <summary>'I' (or the "Import JSON" button) on the first-run screen — jump straight into Import.</summary>
     [RelayCommand]
-    private void RequestImport() => ImportRequested?.Invoke();
+    private void RequestImport() => ImportPromptsCommand.Execute(null);
+
+    /// <summary>Enter with no match, or on the first-run screen — start a new prompt inline with this title prefilled.</summary>
+    public void StartNewPromptWithTitle(string title)
+    {
+        State = PopupState.Resting;
+        BeginEdit(null);
+        EditTitle = title;
+    }
+
+    private bool CanEditSelected() => SelectedPrompt is not null;
+
+    [RelayCommand(CanExecute = nameof(CanEditSelected))]
+    private void EditSelected()
+    {
+        if (SelectedPrompt is null)
+        {
+            return;
+        }
+
+        BeginEdit(SelectedPrompt);
+    }
+
+    [RelayCommand]
+    private void NewPrompt() => BeginEdit(null);
+
+    private void BeginEdit(Prompt? prompt)
+    {
+        _editingPrompt = prompt;
+        EditTitle = prompt?.Title ?? string.Empty;
+        EditBody = prompt?.Body ?? string.Empty;
+        EditTags = prompt?.Tags is { Length: > 0 } tags ? string.Join(", ", tags) : string.Empty;
+        EditStatusMessage = string.Empty;
+        IsEditing = true;
+    }
+
+    private bool CanSaveEdit() => !string.IsNullOrWhiteSpace(EditTitle) && !string.IsNullOrWhiteSpace(EditBody);
+
+    [RelayCommand(CanExecute = nameof(CanSaveEdit))]
+    private void SaveEdit()
+    {
+        var tags = EditTags.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        Guid savedId;
+
+        if (_editingPrompt is null)
+        {
+            var prompt = new Prompt
+            {
+                Title = EditTitle.Trim(),
+                Body = EditBody,
+                Tags = tags.Length > 0 ? tags : null,
+            };
+
+            _repository.Add(prompt);
+            savedId = prompt.Id;
+        }
+        else
+        {
+            _editingPrompt.Title = EditTitle.Trim();
+            _editingPrompt.Body = EditBody;
+            _editingPrompt.Tags = tags.Length > 0 ? tags : null;
+            _repository.Update(_editingPrompt);
+            savedId = _editingPrompt.Id;
+        }
+
+        IsEditing = false;
+        _editingPrompt = null;
+        RefreshResults();
+        SelectById(savedId);
+    }
+
+    [RelayCommand]
+    private void CancelEdit()
+    {
+        IsEditing = false;
+        _editingPrompt = null;
+    }
+
+    private bool CanDeleteSelected() => SelectedPrompt is not null;
+
+    [RelayCommand(CanExecute = nameof(CanDeleteSelected))]
+    private void DeleteSelected()
+    {
+        if (SelectedPrompt is null)
+        {
+            return;
+        }
+
+        bool confirmed;
+        IsModalOpen = true;
+        try
+        {
+            confirmed = MessageBox.Show(
+                $"Delete \"{SelectedPrompt.Title}\"? This can't be undone.",
+                "Prompt Manager",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Warning) == MessageBoxResult.Yes;
+        }
+        finally
+        {
+            IsModalOpen = false;
+        }
+
+        if (!confirmed)
+        {
+            return;
+        }
+
+        _repository.Delete(SelectedPrompt.Id);
+        IsEditing = false;
+        _editingPrompt = null;
+        RefreshResults();
+    }
+
+    [RelayCommand]
+    private void ImportPrompts()
+    {
+        var dialog = new OpenFileDialog { Filter = "JSON files (*.json)|*.json" };
+        bool? picked;
+        IsModalOpen = true;
+        try
+        {
+            picked = dialog.ShowDialog();
+        }
+        finally
+        {
+            IsModalOpen = false;
+        }
+
+        if (picked != true)
+        {
+            return;
+        }
+
+        try
+        {
+            var json = File.ReadAllText(dialog.FileName);
+            var imported = PromptRepository.ParseImport(json);
+            if (imported is not { Count: > 0 })
+            {
+                EditStatusMessage = "No prompts found in file.";
+                return;
+            }
+
+            var count = _repository.Import(imported);
+            RefreshResults();
+            EditStatusMessage = $"Imported {count} prompts.";
+        }
+        catch (Exception ex)
+        {
+            EditStatusMessage = $"Import failed: {ex.Message}";
+        }
+    }
+
+    [RelayCommand]
+    private void ExportPrompts()
+    {
+        var dialog = new SaveFileDialog
+        {
+            Filter = "JSON files (*.json)|*.json",
+            FileName = $"prompts-export-{DateTime.Now:yyyyMMdd-HHmmss}.json",
+        };
+
+        bool? picked;
+        IsModalOpen = true;
+        try
+        {
+            picked = dialog.ShowDialog();
+        }
+        finally
+        {
+            IsModalOpen = false;
+        }
+
+        if (picked != true)
+        {
+            return;
+        }
+
+        File.WriteAllText(dialog.FileName, _repository.ExportToJson());
+        EditStatusMessage = $"Exported {_repository.Prompts.Count} prompts.";
+    }
+
+    private void SelectById(Guid id)
+    {
+        var index = _selectable.FindIndex(r => r.Prompt?.Id == id);
+        SelectedIndex = index >= 0 ? index : (_selectable.Count > 0 ? 0 : -1);
+        SyncSelectionHighlight(SelectedIndex);
+    }
 
     [RelayCommand]
     private void Cancel()

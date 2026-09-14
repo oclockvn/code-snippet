@@ -10,8 +10,6 @@ public sealed class TrayIconService : IDisposable
 
     public event EventHandler? SearchRequested;
 
-    public event EventHandler? ManageRequested;
-
     public event EventHandler? SettingsRequested;
 
     public event EventHandler? ExitRequested;
@@ -35,10 +33,6 @@ public sealed class TrayIconService : IDisposable
         var search = new MenuItem { Header = "Search prompts" };
         search.Click += (_, _) => SearchRequested?.Invoke(this, EventArgs.Empty);
         menu.Items.Add(search);
-
-        var manage = new MenuItem { Header = "Manage library" };
-        manage.Click += (_, _) => ManageRequested?.Invoke(this, EventArgs.Empty);
-        menu.Items.Add(manage);
 
         var settings = new MenuItem { Header = "Settings..." };
         settings.Click += (_, _) => SettingsRequested?.Invoke(this, EventArgs.Empty);

@@ -33,7 +33,7 @@
                         HorizontalContentAlignment="Stretch">
                     <Button.Template>
                         <ControlTemplate TargetType="Button">
-                            <Border x:Name="RowBorder" Padding="20,11" BorderThickness="4,0,0,1"
+                            <Border x:Name="RowBorder" Padding="20,11" BorderThickness="4,0,0,0"
                                     BorderBrush="{StaticResource DarkDividerFaint}">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
@@ -77,7 +77,7 @@
 
     </Window.Resources>
 
-    <Border Background="{StaticResource DarkBg}">
+    <Border Background="{StaticResource DarkBg}" BorderBrush="{StaticResource ColorAccent}" BorderThickness="1">
         <Border.Effect>
             <DropShadowEffect BlurRadius="40" ShadowDepth="10" Opacity="0.35" Color="Black"/>
         </Border.Effect>
@@ -148,35 +148,79 @@
                 </Grid.RowDefinitions>
 
                 <Grid Grid.Row="0" Margin="0,0,0,10">
-                    <TextBlock Text="Preview" HorizontalAlignment="Left" FontSize="10" FontWeight="Bold"
-                               Foreground="{StaticResource Neutral600}"/>
+                    <ItemsControl ItemsSource="{Binding SelectedPrompt.Tags}" HorizontalAlignment="Left"
+                                  Visibility="{Binding IsEditing, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <StackPanel Orientation="Horizontal" Margin="0,0,10,0">
+                                    <TextBlock Text="#" FontSize="10" FontWeight="Bold" Foreground="{StaticResource Accent400}"/>
+                                    <TextBlock Text="{Binding Converter={StaticResource UpperCaseConverter}}" FontSize="10"
+                                               FontWeight="Bold" Foreground="{StaticResource Accent400}"/>
+                                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBlock Text="Editing" HorizontalAlignment="Left" FontSize="10" FontWeight="Bold"
+                               Foreground="{StaticResource Accent400}"
+                               Visibility="{Binding IsEditing, Converter={StaticResource BoolToVisibilityConverter}}"/>
                     <TextBlock HorizontalAlignment="Right" FontSize="10" FontWeight="Bold"
-                               Foreground="{StaticResource Accent400}">
+                               Foreground="{StaticResource Accent400}"
+                               Visibility="{Binding IsEditing, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}">
                         <Run Text="{Binding PreviewCharCount, Mode=OneWay}"/><Run Text=" chars"/>
                     </TextBlock>
                 </Grid>
 
+                <!-- readonly view -->
                 <TextBlock Grid.Row="1" Text="{Binding SelectedPrompt.Body}" FontFamily="Consolas" FontSize="11.5"
                            LineHeight="19" Foreground="{StaticResource Neutral300}" TextWrapping="Wrap"
-                           MaxHeight="260" TextTrimming="CharacterEllipsis"/>
+                           MaxHeight="260" TextTrimming="CharacterEllipsis"
+                           Visibility="{Binding IsEditing, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}"/>
 
-                <Rectangle Grid.Row="2" Height="1" Fill="{StaticResource DarkDividerFaint}" Margin="0,14,0,10"/>
+                <!-- edit view: title/body/tags textarea, replaces row 1 -->
+                <StackPanel Grid.Row="1"
+                            Visibility="{Binding IsEditing, Converter={StaticResource BoolToVisibilityConverter}}">
+                    <TextBlock Text="TITLE" FontSize="9.5" FontWeight="Bold" Foreground="{StaticResource Neutral600}" Margin="0,0,0,5"/>
+                    <TextBox Text="{Binding EditTitle, UpdateSourceTrigger=PropertyChanged}"
+                             FontSize="13" FontWeight="SemiBold" Padding="8,6" Margin="0,0,0,12"
+                             Background="#14F8F4F4" Foreground="{StaticResource Neutral100}" CaretBrush="{StaticResource ColorAccent}"
+                             BorderBrush="{StaticResource DarkDivider}" BorderThickness="1"/>
 
-                <ItemsControl Grid.Row="3" ItemsSource="{Binding SelectedPrompt.Tags}">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <WrapPanel/>
-                        </ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Border BorderBrush="#59F8F4F4" BorderThickness="1" Padding="7,2" Margin="0,0,6,6">
-                                <TextBlock Text="{Binding Converter={StaticResource UpperCaseConverter}}" FontSize="10"
-                                           FontWeight="Bold" Foreground="{StaticResource Neutral200}"/>
-                            </Border>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                    <TextBlock Text="BODY" FontSize="9.5" FontWeight="Bold" Foreground="{StaticResource Neutral600}" Margin="0,0,0,5"/>
+                    <TextBox Text="{Binding EditBody, UpdateSourceTrigger=PropertyChanged}"
+                             FontFamily="Consolas" FontSize="11.5" Padding="8,6" Margin="0,0,0,12"
+                             Background="#14F8F4F4" Foreground="{StaticResource Neutral100}" CaretBrush="{StaticResource ColorAccent}"
+                             BorderBrush="{StaticResource DarkDivider}" BorderThickness="1"
+                             AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Height="140"/>
+
+                    <TextBlock Text="TAGS — COMMA SEPARATED" FontSize="9.5" FontWeight="Bold" Foreground="{StaticResource Neutral600}" Margin="0,0,0,5"/>
+                    <TextBox Text="{Binding EditTags, UpdateSourceTrigger=PropertyChanged}"
+                             FontSize="12" Padding="8,6"
+                             Background="#14F8F4F4" Foreground="{StaticResource Neutral100}" CaretBrush="{StaticResource ColorAccent}"
+                             BorderBrush="{StaticResource DarkDivider}" BorderThickness="1"/>
+                </StackPanel>
+
+                <!-- Save / Cancel — edit mode only -->
+                <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,12,0,0"
+                            Visibility="{Binding IsEditing, Converter={StaticResource BoolToVisibilityConverter}}">
+                    <Button Content="Save" Style="{StaticResource BtnPrimary}" Command="{Binding SaveEditCommand}" Margin="0,0,8,0"/>
+                    <Button Content="Cancel" Style="{StaticResource BtnSecondary}" Foreground="{StaticResource Neutral200}"
+                            BorderBrush="#66F8F4F4" Command="{Binding CancelEditCommand}"/>
+                </StackPanel>
+
+                <!-- Edit / Delete — pinned at the bottom of the pane, right-aligned -->
+                <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
+                    <Button Content="Edit" Style="{StaticResource BtnGhost}" Padding="8,3" FontSize="10"
+                            Command="{Binding EditSelectedCommand}" Margin="0,0,10,0"
+                            Visibility="{Binding IsEditing, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}"/>
+                    <Button Content="Delete" Style="{StaticResource BtnSecondary}" Padding="8,3" FontSize="10"
+                            Foreground="{StaticResource Accent400}" BorderBrush="#59FF9783"
+                            Command="{Binding DeleteSelectedCommand}"/>
+                </StackPanel>
             </Grid>
 
             <!-- no-match state -->
@@ -184,8 +228,8 @@
                         Visibility="{Binding State, Converter={StaticResource EnumEqualsVisibilityConverter}, ConverterParameter=NoMatch}">
                 <TextBlock Text="Nothing matches that." FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource Neutral200}" Margin="0,0,0,6"/>
                 <TextBlock TextWrapping="Wrap" FontSize="12.5" Foreground="{StaticResource Neutral500}" MaxWidth="480">
-                    <Run Text="Press Enter to open the manager with &quot;"/><Run Text="{Binding Query, Mode=OneWay}" Foreground="{StaticResource Neutral200}"/><Run
-                        Text="&quot; already in the title field, or keep typing to widen the search."/>
+                    <Run Text="Press Enter to start a new prompt titled &quot;"/><Run Text="{Binding Query, Mode=OneWay}" Foreground="{StaticResource Neutral200}"/><Run
+                        Text="&quot;, or keep typing to widen the search."/>
                 </TextBlock>
             </StackPanel>
 
@@ -204,12 +248,12 @@
                     </Grid.ColumnDefinitions>
                     <StackPanel Grid.Column="0" Margin="0,14,16,14">
                         <TextBlock Text="01" FontSize="11" FontWeight="Bold" Foreground="{StaticResource Neutral600}" Margin="0,0,0,6"/>
-                        <TextBlock Text="Add prompts in the manager, or import a JSON file you already have." FontSize="12.5"
+                        <TextBlock Text="Add a prompt right here, or import a JSON file you already have." FontSize="12.5"
                                    Foreground="{StaticResource Neutral300}" TextWrapping="Wrap"/>
                     </StackPanel>
                     <StackPanel Grid.Column="1" Margin="0,14,16,14">
                         <TextBlock Text="02" FontSize="11" FontWeight="Bold" Foreground="{StaticResource Neutral600}" Margin="0,0,0,6"/>
-                        <TextBlock Text="Hit Ctrl + Space anywhere and type a few letters." FontSize="12.5"
+                        <TextBlock Text="Hit Shift + Alt + J anywhere and type a few letters." FontSize="12.5"
                                    Foreground="{StaticResource Neutral300}" TextWrapping="Wrap"/>
                     </StackPanel>
                     <StackPanel Grid.Column="2" Margin="0,14,0,14">
@@ -254,21 +298,27 @@
                 <Rectangle Grid.Row="1" Fill="{StaticResource ColorAccent}"/>
             </Grid>
 
-            <!-- footer: keybind hints (Resting / Typing) -->
-            <Grid Grid.Row="3" Grid.ColumnSpan="2" Margin="20,10"
-                  Visibility="{Binding IsResultsVisible, Converter={StaticResource BoolToVisibilityConverter}}">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock Text="↑ ↓  Move" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource Neutral500}" Margin="0,0,20,0"/>
-                    <TextBlock Text="⏎  Copy" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource Neutral500}" Margin="0,0,20,0"/>
-                    <TextBlock Text="Esc  Close" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource Neutral500}"/>
-                </StackPanel>
-                <TextBlock Grid.Column="1" Text="Copies to clipboard — paste with Ctrl + V" FontSize="10.5"
-                           FontWeight="SemiBold" Foreground="{StaticResource Accent400}"/>
-            </Grid>
+            <!-- footer: keybind hints + library actions (Resting / Typing), combined -->
+            <Border Grid.Row="3" Grid.ColumnSpan="2" BorderBrush="{StaticResource DarkDividerFaint}" BorderThickness="0,1,0,0" Padding="20,10"
+                    Visibility="{Binding IsResultsVisible, Converter={StaticResource BoolToVisibilityConverter}}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
+                        <TextBlock Text="↑ ↓  Move" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource Neutral500}" Margin="0,0,16,0"/>
+                        <TextBlock Text="⏎  Copy" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource Neutral500}" Margin="0,0,16,0"/>
+                        <TextBlock Text="Esc  Close" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource Neutral500}" Margin="0,0,16,0"/>
+                        <TextBlock Text="{Binding EditStatusMessage}" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource Accent400}"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button Content="+ New" Style="{StaticResource BtnGhost}" Padding="8,5" FontSize="10.5" Command="{Binding NewPromptCommand}" Margin="0,0,10,0"/>
+                        <Button Content="Import" Style="{StaticResource BtnGhost}" Padding="8,5" FontSize="10.5" Command="{Binding ImportPromptsCommand}" Margin="0,0,10,0"/>
+                        <Button Content="Export" Style="{StaticResource BtnGhost}" Padding="8,5" FontSize="10.5" Command="{Binding ExportPromptsCommand}"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
 
             <!-- footer: no-match hints -->
             <StackPanel Grid.Row="3" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="20,10"
