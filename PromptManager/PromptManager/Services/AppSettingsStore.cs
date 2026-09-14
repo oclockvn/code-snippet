@@ -1,8 +1,9 @@
 using System.IO;
 using System.Text.Json;
+using CodeSnippet.Models;
 using PromptManager.Models;
 
-namespace PromptManager.Services;
+namespace CodeSnippet.Services;
 
 public sealed class AppSettingsStore
 {

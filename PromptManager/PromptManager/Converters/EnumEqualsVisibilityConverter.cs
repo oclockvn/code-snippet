@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Data;
 
-namespace PromptManager.Converters;
+namespace CodeSnippet.Converters;
 
 /// <summary>Visible when the bound enum value's name matches the ConverterParameter string; drives the popup's per-state panels.</summary>
 public sealed class EnumEqualsVisibilityConverter : IValueConverter

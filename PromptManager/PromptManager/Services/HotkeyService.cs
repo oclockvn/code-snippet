@@ -3,7 +3,7 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Interop;
 
-namespace PromptManager.Services;
+namespace CodeSnippet.Services;
 
 /// <summary>
 /// Wraps the Win32 RegisterHotKey API against a single persistent window handle (the pre-warmed

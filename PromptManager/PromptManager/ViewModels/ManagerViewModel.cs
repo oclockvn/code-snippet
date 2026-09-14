@@ -1,10 +1,10 @@
 using System.Collections.ObjectModel;
 using System.IO;
+using CodeSnippet.Models;
+using CodeSnippet.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
-using PromptManager.Models;
-using PromptManager.Services;
 
 namespace PromptManager.ViewModels;
 

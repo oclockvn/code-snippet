@@ -1,6 +1,6 @@
 using Microsoft.Win32;
 
-namespace PromptManager.Services;
+namespace CodeSnippet.Services;
 
 public sealed class StartupService
 {

@@ -1,8 +1,8 @@
 using System.Globalization;
 using System.Windows.Data;
-using PromptManager.Services;
+using CodeSnippet.Services;
 
-namespace PromptManager.Converters;
+namespace CodeSnippet.Converters;
 
 /// <summary>Renders a timestamp as a relative label. Pass ConverterParameter="Sentence" for the Manager's
 /// lower-case "2 minutes ago" style; omit it for the popup's compact uppercase "2 MIN AGO" style.</summary>

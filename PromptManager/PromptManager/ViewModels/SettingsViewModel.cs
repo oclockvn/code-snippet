@@ -1,8 +1,8 @@
 using System.Diagnostics;
 using System.Windows.Input;
+using CodeSnippet.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using PromptManager.Services;
 
 namespace PromptManager.ViewModels;
 

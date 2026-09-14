@@ -1,4 +1,4 @@
-namespace PromptManager.Services;
+namespace CodeSnippet.Services;
 
 /// <summary>
 /// VS Code "Quick Open"-style fuzzy matcher: <paramref name="query"/> chars must appear in

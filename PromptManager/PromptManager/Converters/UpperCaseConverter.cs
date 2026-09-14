@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Windows.Data;
 
-namespace PromptManager.Converters;
+namespace CodeSnippet.Converters;
 
 /// <summary>Renders text upper-case, standing in for the mock's CSS text-transform:uppercase on tag/label chrome.</summary>
 public sealed class UpperCaseConverter : IValueConverter

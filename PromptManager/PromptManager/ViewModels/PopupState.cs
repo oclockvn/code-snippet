@@ -1,4 +1,4 @@
-namespace PromptManager.ViewModels;
+namespace CodeSnippet.ViewModels;
 
 public enum PopupState
 {

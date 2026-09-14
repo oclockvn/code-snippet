@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Data;
 
-namespace PromptManager.Converters;
+namespace CodeSnippet.Converters;
 
 /// <summary>Bool-to-Visibility with an optional "Invert" ConverterParameter, so one converter covers both a panel and its opposite.</summary>
 public sealed class BoolToVisibilityConverter : IValueConverter

@@ -1,4 +1,4 @@
-namespace PromptManager.Models;
+namespace CodeSnippet.Models;
 
 public enum PromptSortMode
 {

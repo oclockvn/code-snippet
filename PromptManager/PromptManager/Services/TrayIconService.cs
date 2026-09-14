@@ -2,7 +2,7 @@ using System.Windows.Controls;
 using System.Windows.Media.Imaging;
 using H.NotifyIcon;
 
-namespace PromptManager.Services;
+namespace CodeSnippet.Services;
 
 public sealed class TrayIconService : IDisposable
 {

@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
@@ -6,8 +6,8 @@
     <UseWPF>true</UseWPF>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <AssemblyName>PromptManager</AssemblyName>
-    <RootNamespace>PromptManager</RootNamespace>
+    <AssemblyName>CodeSnippet</AssemblyName>
+    <RootNamespace>CodeSnippet</RootNamespace>
     <ApplicationIcon>Resources\app.ico</ApplicationIcon>
     <Authors>ocloc</Authors>
     <Description>Windows tray utility for managing text prompts and pasting them into any app via a global hotkey.</Description>

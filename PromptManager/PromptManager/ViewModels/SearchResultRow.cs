@@ -1,5 +1,5 @@
+using CodeSnippet.Models;
 using CommunityToolkit.Mvvm.ComponentModel;
-using PromptManager.Models;
 
 namespace PromptManager.ViewModels;
 

@@ -1,7 +1,7 @@
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Input;
-using PromptManager.Services;
+using CodeSnippet.Services;
 using PromptManager.ViewModels;
 
 namespace PromptManager.Views;

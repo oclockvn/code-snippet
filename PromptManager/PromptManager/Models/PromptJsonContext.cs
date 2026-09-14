@@ -1,3 +1,4 @@
+using CodeSnippet.Models;
 using System.Text.Json.Serialization;
 
 namespace PromptManager.Models;

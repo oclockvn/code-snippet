@@ -3,7 +3,7 @@ using System.Windows.Controls;
 using System.Windows.Documents;
 using PromptManager.ViewModels;
 
-namespace PromptManager.Behaviors;
+namespace CodeSnippet.Behaviors;
 
 /// <summary>
 /// Renders <see cref="SearchResultRow.TitleSegments"/> (plain/matched runs, possibly non-contiguous

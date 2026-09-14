@@ -2,7 +2,8 @@ using System.ComponentModel;
 using System.Linq;
 using System.Windows;
 using System.Windows.Input;
-using PromptManager.Models;
+using CodeSnippet.Models;
+using CodeSnippet.ViewModels;
 using PromptManager.ViewModels;
 
 namespace PromptManager.Views;

@@ -2,8 +2,8 @@ using System.IO;
 using System.Threading;
 using System.Windows;
 using System.Windows.Input;
-using PromptManager.Models;
-using PromptManager.Services;
+using CodeSnippet.Models;
+using CodeSnippet.Services;
 using PromptManager.ViewModels;
 using PromptManager.Views;
 

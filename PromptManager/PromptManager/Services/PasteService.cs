@@ -1,7 +1,7 @@
 using System.Runtime.InteropServices;
 using System.Windows;
 
-namespace PromptManager.Services;
+namespace CodeSnippet.Services;
 
 /// <summary>
 /// Copies prompt text to the clipboard. The caller pastes manually (Ctrl+V) wherever they need it.

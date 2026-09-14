@@ -1,9 +1,9 @@
 using System.Globalization;
 
-namespace PromptManager.Services;
+namespace CodeSnippet.Services;
 
 /// <summary>Shared "2 MIN AGO" / "2 minutes ago" style relative-time text, used by the popup meta labels,
-/// the Manager's stats row, and <see cref="PromptManager.Converters.RelativeTimeConverter"/>.</summary>
+/// the Manager's stats row, and <see cref="Converters.RelativeTimeConverter"/>.</summary>
 public static class RelativeTimeFormatter
 {
     public static string Format(DateTimeOffset timestamp, bool sentenceCase)
