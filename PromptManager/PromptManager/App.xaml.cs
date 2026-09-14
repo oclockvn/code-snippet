@@ -1,3 +1,4 @@
+using System.IO;
 using System.Threading;
 using System.Windows;
 using System.Windows.Input;
@@ -45,8 +46,10 @@ public partial class App : Application
         _pasteService = new PasteService();
         _startupService = new StartupService();
 
-        var searchViewModel = new SearchPopupViewModel(_repository);
-        _searchPopupWindow = new SearchPopupWindow(searchViewModel, _pasteService);
+        var searchViewModel = new SearchPopupViewModel(_repository, _pasteService, _settings.ShowPreviewPane);
+        searchViewModel.CreatePromptRequested += OnCreatePromptRequested;
+        searchViewModel.ImportRequested += OnImportRequested;
+        _searchPopupWindow = new SearchPopupWindow(searchViewModel);
 
         // Force the HWND and one full layout/render pass now, so the hotkey path never pays for it.
         _searchPopupWindow.Show();
@@ -90,11 +93,17 @@ public partial class App : Application
         _settingsStore.Save(_settings);
     }
 
-    private void ShowManagerWindow()
+    private ManagerWindow EnsureManagerWindow()
     {
         _managerWindow ??= new ManagerWindow(new ManagerViewModel(_repository));
-        _managerWindow.Show();
-        _managerWindow.Activate();
+        return _managerWindow;
+    }
+
+    private void ShowManagerWindow()
+    {
+        var window = EnsureManagerWindow();
+        window.Show();
+        window.Activate();
     }
 
     private void ShowSettingsWindow()
@@ -103,12 +112,43 @@ public partial class App : Application
         {
             var modifiers = (HotkeyService.Modifiers)_settings.HotkeyModifiers;
             var key = (Key)_settings.HotkeyKey;
-            var viewModel = new SettingsViewModel(_startupService, modifiers, key, ApplyNewHotkey);
+            var dataFolderPath = Path.GetDirectoryName(_repository.FilePath) ?? string.Empty;
+            var viewModel = new SettingsViewModel(
+                _startupService,
+                dataFolderPath,
+                modifiers,
+                key,
+                _settings.ShowPreviewPane,
+                ApplyNewHotkey,
+                ApplyShowPreviewPane);
             _settingsWindow = new SettingsWindow(viewModel);
         }
 
         _settingsWindow.Show();
         _settingsWindow.Activate();
+    }
+
+    private void ApplyShowPreviewPane(bool value)
+    {
+        _settings.ShowPreviewPane = value;
+        _settingsStore.Save(_settings);
+        _searchPopupWindow.ViewModel.ShowPreviewPane = value;
+    }
+
+    private void OnCreatePromptRequested(string title)
+    {
+        var window = EnsureManagerWindow();
+        window.ViewModel.StartNewPromptWithTitle(title);
+        window.Show();
+        window.Activate();
+    }
+
+    private void OnImportRequested()
+    {
+        var window = EnsureManagerWindow();
+        window.Show();
+        window.Activate();
+        window.ViewModel.ImportCommand.Execute(null);
     }
 
     protected override void OnExit(ExitEventArgs e)

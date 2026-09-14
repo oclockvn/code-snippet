@@ -6,9 +6,12 @@ namespace PromptManager.Views;
 
 public partial class ManagerWindow : Window
 {
+    public ManagerViewModel ViewModel { get; }
+
     public ManagerWindow(ManagerViewModel viewModel)
     {
         InitializeComponent();
+        ViewModel = viewModel;
         DataContext = viewModel;
     }
 
