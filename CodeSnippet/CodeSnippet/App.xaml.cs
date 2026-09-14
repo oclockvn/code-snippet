@@ -4,14 +4,14 @@ using System.Windows;
 using System.Windows.Input;
 using CodeSnippet.Models;
 using CodeSnippet.Services;
-using PromptManager.ViewModels;
-using PromptManager.Views;
+using CodeSnippet.ViewModels;
+using CodeSnippet.Views;
 
-namespace PromptManager;
+namespace CodeSnippet;
 
 public partial class App : Application
 {
-    private const string MutexName = "PromptManager.SingleInstance.Mutex";
+    private const string MutexName = "CodeSnippet.SingleInstance.Mutex";
 
     private Mutex? _singleInstanceMutex;
     private PromptRepository _repository = null!;

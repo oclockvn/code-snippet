@@ -1,7 +1,7 @@
 using CodeSnippet.Models;
 using System.Text.Json.Serialization;
 
-namespace PromptManager.Models;
+namespace CodeSnippet.Models;
 
 [JsonSourceGenerationOptions(WriteIndented = true, PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase)]
 [JsonSerializable(typeof(List<Prompt>))]

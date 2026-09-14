@@ -5,7 +5,7 @@ namespace CodeSnippet.Services;
 public sealed class StartupService
 {
     private const string RunKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
-    private const string ValueName = "PromptManager";
+    private const string ValueName = "CodeSnippet";
 
     public bool IsEnabled()
     {

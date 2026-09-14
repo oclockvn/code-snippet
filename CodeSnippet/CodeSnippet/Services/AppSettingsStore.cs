@@ -1,7 +1,7 @@
 using System.IO;
 using System.Text.Json;
 using CodeSnippet.Models;
-using PromptManager.Models;
+using CodeSnippet.Models;
 
 namespace CodeSnippet.Services;
 
@@ -10,7 +10,7 @@ public sealed class AppSettingsStore
     private readonly string _filePath;
 
     public AppSettingsStore()
-        : this(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "PromptManager", "settings.json"))
+        : this(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CodeSnippet", "settings.json"))
     {
     }
 

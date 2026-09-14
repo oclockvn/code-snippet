@@ -6,7 +6,7 @@ using CodeSnippet.ViewModels;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
-namespace PromptManager.ViewModels;
+namespace CodeSnippet.ViewModels;
 
 public sealed partial class SearchPopupViewModel : ObservableObject
 {

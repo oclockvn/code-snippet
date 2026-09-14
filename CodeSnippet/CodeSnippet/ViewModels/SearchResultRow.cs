@@ -1,7 +1,7 @@
 using CodeSnippet.Models;
 using CommunityToolkit.Mvvm.ComponentModel;
 
-namespace PromptManager.ViewModels;
+namespace CodeSnippet.ViewModels;
 
 /// <summary>
 /// One visual row in the popup's result list: either a group header ("Recent" / "Most used") or a

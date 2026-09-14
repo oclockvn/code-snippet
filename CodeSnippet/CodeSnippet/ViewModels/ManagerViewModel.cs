@@ -6,7 +6,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Win32;
 
-namespace PromptManager.ViewModels;
+namespace CodeSnippet.ViewModels;
 
 public sealed partial class ManagerViewModel : ObservableObject
 {

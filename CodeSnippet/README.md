@@ -14,8 +14,8 @@ Default hotkey: **Ctrl+Alt+P** (rebindable from Settings).
 ## Build & run
 
 ```powershell
-dotnet build PromptManager.sln
-dotnet run --project PromptManager\PromptManager.csproj
+dotnet build CodeSnippet.sln
+dotnet run --project CodeSnippet\CodeSnippet.csproj
 ```
 
 The app has no visible main window on launch — it registers the global hotkey and puts an icon in
@@ -35,8 +35,8 @@ the system tray. Right-click the tray icon for **Search Prompts**, **Manage Prom
 
 ## Data
 
-Prompts are stored as JSON at `%AppData%\PromptManager\prompts.json`; app settings (hotkey binding)
-at `%AppData%\PromptManager\settings.json`. Both load fully into memory at startup; writes happen
+Prompts are stored as JSON at `%AppData%\CodeSnippet\prompts.json`; app settings (hotkey binding)
+at `%AppData%\CodeSnippet\settings.json`. Both load fully into memory at startup; writes happen
 on a background task so no UI action blocks on disk I/O.
 
 ## Notes

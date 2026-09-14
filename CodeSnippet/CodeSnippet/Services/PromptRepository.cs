@@ -1,7 +1,7 @@
 using System.IO;
 using System.Text.Json;
 using CodeSnippet.Models;
-using PromptManager.Models;
+using CodeSnippet.Models;
 
 namespace CodeSnippet.Services;
 
@@ -23,7 +23,7 @@ public sealed class PromptRepository
     private bool _isSaving;
 
     public PromptRepository()
-        : this(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "PromptManager", "prompts.json"))
+        : this(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "CodeSnippet", "prompts.json"))
     {
     }
 

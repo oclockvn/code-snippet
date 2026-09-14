@@ -2,9 +2,9 @@ using System.ComponentModel;
 using System.Windows;
 using System.Windows.Input;
 using CodeSnippet.Services;
-using PromptManager.ViewModels;
+using CodeSnippet.ViewModels;
 
-namespace PromptManager.Views;
+namespace CodeSnippet.Views;
 
 public partial class SettingsWindow : Window
 {

@@ -1,8 +1,8 @@
 using System.ComponentModel;
 using System.Windows;
-using PromptManager.ViewModels;
+using CodeSnippet.ViewModels;
 
-namespace PromptManager.Views;
+namespace CodeSnippet.Views;
 
 public partial class ManagerWindow : Window
 {

@@ -4,9 +4,9 @@ using System.Windows;
 using System.Windows.Input;
 using CodeSnippet.Models;
 using CodeSnippet.ViewModels;
-using PromptManager.ViewModels;
+using CodeSnippet.ViewModels;
 
-namespace PromptManager.Views;
+namespace CodeSnippet.Views;
 
 public partial class SearchPopupWindow : Window
 {
