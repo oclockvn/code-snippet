@@ -73,6 +73,24 @@ public partial class SearchPopupWindow : Window
 
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
     {
+        if (_viewModel.IsEditing)
+        {
+            // Let Enter/Up/Down behave normally inside the edit textboxes (newline, caret movement);
+            // only Escape (cancel) and Ctrl+S (save) are intercepted globally.
+            if (e.Key == Key.Escape)
+            {
+                _viewModel.CancelEditCommand.Execute(null);
+                e.Handled = true;
+            }
+            else if (e.Key == Key.S && Keyboard.Modifiers == ModifierKeys.Control && _viewModel.SaveEditCommand.CanExecute(null))
+            {
+                _viewModel.SaveEditCommand.Execute(null);
+                e.Handled = true;
+            }
+
+            return;
+        }
+
         switch (e.Key)
         {
             case Key.Escape:
@@ -101,7 +119,7 @@ public partial class SearchPopupWindow : Window
     protected override void OnDeactivated(EventArgs e)
     {
         base.OnDeactivated(e);
-        if (Visibility == Visibility.Visible)
+        if (Visibility == Visibility.Visible && !_viewModel.IsModalOpen)
         {
             HideBack();
         }

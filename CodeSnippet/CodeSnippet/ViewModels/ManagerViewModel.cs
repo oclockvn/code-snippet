@@ -35,8 +35,7 @@ public sealed partial class ManagerViewModel : ObservableObject
     [ObservableProperty]
     private string _filterText = string.Empty;
 
-    [ObservableProperty]
-    private PromptSortMode _sortMode = PromptSortMode.Recent;
+    private readonly List<Prompt> _searchBuffer = new();
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ShowOnboarding))]
@@ -61,23 +60,20 @@ public sealed partial class ManagerViewModel : ObservableObject
 
     partial void OnFilterTextChanged(string value) => ApplyFilterAndSort();
 
-    partial void OnSortModeChanged(PromptSortMode value) => ApplyFilterAndSort();
-
     private void ApplyFilterAndSort()
     {
         var previouslySelectedId = SelectedPrompt?.Id;
 
-        IEnumerable<Prompt> source = _repository.Prompts;
-        if (!string.IsNullOrWhiteSpace(FilterText))
+        IEnumerable<Prompt> ordered;
+        if (string.IsNullOrWhiteSpace(FilterText))
         {
-            var filter = FilterText;
-            source = source.Where(p =>
-                p.Title.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
-                p.Body.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
-                (p.Tags?.Any(t => t.Contains(filter, StringComparison.OrdinalIgnoreCase)) ?? false));
+            ordered = PromptRepository.OrderBy(_repository.Prompts, PromptSortMode.Recent);
         }
-
-        var ordered = PromptRepository.OrderBy(source, SortMode);
+        else
+        {
+            _repository.Search(FilterText, _searchBuffer);
+            ordered = _searchBuffer;
+        }
 
         Prompts.Clear();
         foreach (var prompt in ordered)
@@ -90,9 +86,6 @@ public sealed partial class ManagerViewModel : ObservableObject
             ? Prompts.FirstOrDefault(p => p.Id == id)
             : null;
     }
-
-    [RelayCommand]
-    private void SetSortMode(string mode) => SortMode = Enum.Parse<PromptSortMode>(mode);
 
     partial void OnSelectedPromptChanged(Prompt? value)
     {
