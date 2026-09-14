@@ -54,13 +54,11 @@ public partial class App : Application
 
         _hotkeyService = new HotkeyService();
         RegisterConfiguredHotkey();
-        _hotkeyService.HotkeyPressed += (_, _) =>
-            _searchPopupWindow.ShowForHotkey(PasteService.CaptureForegroundWindow());
+        _hotkeyService.HotkeyPressed += (_, _) => _searchPopupWindow.ShowForHotkey();
 
         var iconUri = new Uri("pack://application:,,,/Resources/app.ico", UriKind.Absolute);
         _trayIconService = new TrayIconService(iconUri);
-        _trayIconService.SearchRequested += (_, _) =>
-            _searchPopupWindow.ShowForHotkey(PasteService.CaptureForegroundWindow());
+        _trayIconService.SearchRequested += (_, _) => _searchPopupWindow.ShowForHotkey();
         _trayIconService.ManageRequested += (_, _) => ShowManagerWindow();
         _trayIconService.SettingsRequested += (_, _) => ShowSettingsWindow();
         _trayIconService.ExitRequested += (_, _) => Shutdown();
