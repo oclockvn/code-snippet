@@ -10,16 +10,14 @@ public partial class SearchPopupWindow : Window
 {
     private readonly SearchPopupViewModel _viewModel;
     private readonly PasteService _pasteService;
-    private readonly PromptRepository _repository;
     private IntPtr _previousForegroundWindow;
 
-    public SearchPopupWindow(SearchPopupViewModel viewModel, PasteService pasteService, PromptRepository repository)
+    public SearchPopupWindow(SearchPopupViewModel viewModel, PasteService pasteService)
     {
         InitializeComponent();
 
         _viewModel = viewModel;
         _pasteService = pasteService;
-        _repository = repository;
         DataContext = _viewModel;
 
         _viewModel.PromptChosen += OnPromptChosen;
@@ -50,7 +48,6 @@ public partial class SearchPopupWindow : Window
     private async void OnPromptChosen(Prompt prompt)
     {
         HideBack();
-        _repository.TouchUsage(prompt.Id);
         await _pasteService.PasteIntoAsync(_previousForegroundWindow, prompt.Body);
     }
 

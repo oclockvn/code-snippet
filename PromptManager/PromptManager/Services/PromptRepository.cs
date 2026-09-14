@@ -45,8 +45,8 @@ public sealed class PromptRepository
         try
         {
             var json = File.ReadAllText(_filePath);
-            var envelope = JsonSerializer.Deserialize(json, PromptJsonContext.Default.PromptExportEnvelope);
-            if (envelope?.Prompts is { } prompts)
+            var prompts = JsonSerializer.Deserialize(json, PromptJsonContext.Default.ListPrompt);
+            if (prompts is not null)
             {
                 _prompts.AddRange(prompts);
             }
@@ -59,8 +59,6 @@ public sealed class PromptRepository
 
     public void Add(Prompt prompt)
     {
-        prompt.CreatedAt = DateTime.UtcNow;
-        prompt.UpdatedAt = prompt.CreatedAt;
         _prompts.Add(prompt);
         QueueSave();
     }
@@ -73,7 +71,6 @@ public sealed class PromptRepository
             return false;
         }
 
-        prompt.UpdatedAt = DateTime.UtcNow;
         _prompts[index] = prompt;
         QueueSave();
         return true;
@@ -90,22 +87,10 @@ public sealed class PromptRepository
         return removed;
     }
 
-    public void TouchUsage(Guid id)
-    {
-        var prompt = _prompts.Find(p => p.Id == id);
-        if (prompt is null)
-        {
-            return;
-        }
-
-        prompt.UseCount++;
-        QueueSave();
-    }
-
     /// <summary>
     /// Fills <paramref name="results"/> (cleared first) with prompts matching <paramref name="query"/>,
-    /// title matches ranked before body matches. Hand-rolled single pass, no LINQ, so keystroke-driven
-    /// filtering doesn't allocate iterators/closures on the hot path.
+    /// title matches ranked before body matches. Hand-rolled single pass, no LINQ, so
+    /// keystroke-driven filtering doesn't allocate iterators/closures on the hot path.
     /// </summary>
     public void Search(string query, List<Prompt> results)
     {
@@ -164,14 +149,11 @@ public sealed class PromptRepository
         return count;
     }
 
-    public string ExportToJson()
-    {
-        var envelope = new PromptExportEnvelope { ExportedAt = DateTime.UtcNow, Prompts = new List<Prompt>(_prompts) };
-        return JsonSerializer.Serialize(envelope, PromptJsonContext.Default.PromptExportEnvelope);
-    }
+    public string ExportToJson() =>
+        JsonSerializer.Serialize(_prompts, PromptJsonContext.Default.ListPrompt);
 
-    public static PromptExportEnvelope? ParseImport(string json) =>
-        JsonSerializer.Deserialize(json, PromptJsonContext.Default.PromptExportEnvelope);
+    public static List<Prompt>? ParseImport(string json) =>
+        JsonSerializer.Deserialize(json, PromptJsonContext.Default.ListPrompt);
 
     private void QueueSave()
     {
@@ -230,8 +212,7 @@ public sealed class PromptRepository
             Directory.CreateDirectory(directory);
         }
 
-        var envelope = new PromptExportEnvelope { ExportedAt = DateTime.UtcNow, Prompts = snapshot };
-        var json = JsonSerializer.Serialize(envelope, PromptJsonContext.Default.PromptExportEnvelope);
+        var json = JsonSerializer.Serialize(snapshot, PromptJsonContext.Default.ListPrompt);
 
         var tempPath = _filePath + ".tmp";
         await File.WriteAllTextAsync(tempPath, json).ConfigureAwait(false);

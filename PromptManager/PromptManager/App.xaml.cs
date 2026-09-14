@@ -46,7 +46,7 @@ public partial class App : Application
         _startupService = new StartupService();
 
         var searchViewModel = new SearchPopupViewModel(_repository);
-        _searchPopupWindow = new SearchPopupWindow(searchViewModel, _pasteService, _repository);
+        _searchPopupWindow = new SearchPopupWindow(searchViewModel, _pasteService);
 
         // Force the HWND and one full layout/render pass now, so the hotkey path never pays for it.
         _searchPopupWindow.Show();

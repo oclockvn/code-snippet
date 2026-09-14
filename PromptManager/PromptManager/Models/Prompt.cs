@@ -9,10 +9,4 @@ public class Prompt
     public string Body { get; set; } = string.Empty;
 
     public string[]? Tags { get; set; }
-
-    public int UseCount { get; set; }
-
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-
-    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 }

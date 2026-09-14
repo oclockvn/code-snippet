@@ -135,8 +135,8 @@ public sealed partial class ManagerViewModel : ObservableObject
         try
         {
             var json = File.ReadAllText(dialog.FileName);
-            var envelope = PromptRepository.ParseImport(json);
-            if (envelope?.Prompts is not { Count: > 0 } imported)
+            var imported = PromptRepository.ParseImport(json);
+            if (imported is not { Count: > 0 })
             {
                 StatusMessage = "No prompts found in file.";
                 return;
