@@ -50,9 +50,9 @@
                                                 Background="#38FF9783" Foreground="{StaticResource Accent400}"/><Run
                                                 Text="{Binding TitleAfter, Mode=OneWay}"/>
                                         </TextBlock>
-                                        <TextBlock x:Name="BodyText" Text="{Binding Prompt.Body}" FontSize="12"
+                                        <TextBlock x:Name="BodyText" Text="{Binding BodyPreview}" FontSize="12"
                                                    Foreground="{StaticResource Neutral500}" Margin="0,2,0,0"
-                                                   TextTrimming="CharacterEllipsis"/>
+                                                   TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
                                     </StackPanel>
                                     <TextBlock x:Name="MetaTextBlock" Grid.Column="2" Text="{Binding MetaText}"
                                                FontSize="10" FontWeight="Bold" Foreground="{StaticResource Neutral600}"/>

@@ -28,6 +28,9 @@ public sealed partial class SearchResultRow : ObservableObject
 
     public string MetaText { get; init; } = string.Empty;
 
+    /// <summary>Body collapsed to one line (embedded newlines flattened) for the result-row preview.</summary>
+    public string BodyPreview { get; init; } = string.Empty;
+
     [ObservableProperty]
     private bool _isSelected;
 }

@@ -214,6 +214,7 @@ public sealed partial class SearchPopupViewModel : ObservableObject
             TitleMatch = match,
             TitleAfter = after,
             MetaText = BuildMetaText(prompt, includeTimestamp),
+            BodyPreview = ToSingleLine(prompt.Body),
         };
 
         Rows.Add(row);
@@ -232,6 +233,21 @@ public sealed partial class SearchPopupViewModel : ObservableObject
             ? (title, string.Empty, string.Empty)
             : (title[..index], title.Substring(index, query.Length), title[(index + query.Length)..]);
     }
+
+    private static string ToSingleLine(string body)
+    {
+        var start = 0;
+        while (start < body.Length && char.IsWhiteSpace(body[start]))
+        {
+            start++;
+        }
+
+        var newline = body.IndexOfAny(NewlineChars, start);
+        var firstLine = newline < 0 ? body[start..] : body[start..newline];
+        return firstLine.Trim();
+    }
+
+    private static readonly char[] NewlineChars = { '\r', '\n' };
 
     private static string BuildMetaText(Prompt prompt, bool includeTimestamp)
     {
