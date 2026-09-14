@@ -17,6 +17,7 @@ public sealed partial class SearchPopupViewModel : ObservableObject
     private readonly PasteService _pasteService;
     private readonly List<Prompt> _searchBuffer = new();
     private readonly List<SearchResultRow> _selectable = new();
+    private readonly List<(int Start, int Length)> _highlightRangeBuffer = new();
     private readonly DispatcherTimer _copiedTimer;
     private Prompt? _pendingHide;
 
@@ -104,7 +105,13 @@ public sealed partial class SearchPopupViewModel : ObservableObject
 
     partial void OnShowPreviewPaneChanged(bool value) => IsPreviewVisible = IsResultsVisible && value;
 
-    partial void OnSelectedIndexChanged(int value)
+    partial void OnSelectedIndexChanged(int value) => SyncSelectionHighlight(value);
+
+    // Rows are rebuilt from scratch on every RefreshResults (fresh SearchResultRow instances, IsSelected
+    // defaults to false), so the highlight must be re-applied unconditionally — it can't rely solely on
+    // OnSelectedIndexChanged, which the generated property setter skips when the numeric index happens to
+    // be unchanged from the previous open (e.g. reopening the popup with the same index-0 default).
+    private void SyncSelectionHighlight(int value)
     {
         for (var i = 0; i < _selectable.Count; i++)
         {
@@ -126,6 +133,7 @@ public sealed partial class SearchPopupViewModel : ObservableObject
         {
             State = PopupState.FirstRun;
             SelectedIndex = -1;
+            SyncSelectionHighlight(-1);
             return;
         }
 
@@ -160,7 +168,9 @@ public sealed partial class SearchPopupViewModel : ObservableObject
             }
         }
 
-        SelectedIndex = _selectable.Count > 0 ? 0 : -1;
+        var newIndex = _selectable.Count > 0 ? 0 : -1;
+        SelectedIndex = newIndex;
+        SyncSelectionHighlight(newIndex);
     }
 
     private void BuildRestingRows()
@@ -202,7 +212,6 @@ public sealed partial class SearchPopupViewModel : ObservableObject
     private void AddItemRow(Prompt prompt, string? highlightQuery, bool includeTimestamp)
     {
         var index = _selectable.Count;
-        var (before, match, after) = SplitTitle(prompt.Title, highlightQuery);
 
         var row = new SearchResultRow
         {
@@ -210,9 +219,7 @@ public sealed partial class SearchPopupViewModel : ObservableObject
             Prompt = prompt,
             SelectableIndex = index,
             DisplayNumber = index + 1,
-            TitleBefore = before,
-            TitleMatch = match,
-            TitleAfter = after,
+            TitleSegments = BuildTitleSegments(prompt.Title, highlightQuery),
             MetaText = BuildMetaText(prompt, includeTimestamp),
             BodyPreview = ToSingleLine(prompt.Body),
         };
@@ -221,17 +228,33 @@ public sealed partial class SearchPopupViewModel : ObservableObject
         _selectable.Add(row);
     }
 
-    private static (string Before, string Match, string After) SplitTitle(string title, string? query)
+    private List<TitleSegment> BuildTitleSegments(string title, string? query)
     {
-        if (string.IsNullOrEmpty(query))
+        if (string.IsNullOrEmpty(query) || !FuzzyMatcher.TryMatch(title, query, out _, _highlightRangeBuffer))
         {
-            return (title, string.Empty, string.Empty);
+            return new List<TitleSegment> { new(title, IsMatch: false) };
         }
 
-        var index = title.IndexOf(query, StringComparison.OrdinalIgnoreCase);
-        return index < 0
-            ? (title, string.Empty, string.Empty)
-            : (title[..index], title.Substring(index, query.Length), title[(index + query.Length)..]);
+        var segments = new List<TitleSegment>(_highlightRangeBuffer.Count * 2 + 1);
+        var pos = 0;
+
+        foreach (var (start, length) in _highlightRangeBuffer)
+        {
+            if (start > pos)
+            {
+                segments.Add(new TitleSegment(title[pos..start], IsMatch: false));
+            }
+
+            segments.Add(new TitleSegment(title.Substring(start, length), IsMatch: true));
+            pos = start + length;
+        }
+
+        if (pos < title.Length)
+        {
+            segments.Add(new TitleSegment(title[pos..], IsMatch: false));
+        }
+
+        return segments;
     }
 
     private static string ToSingleLine(string body)

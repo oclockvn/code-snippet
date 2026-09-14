@@ -20,11 +20,8 @@ public sealed partial class SearchResultRow : ObservableObject
 
     public int DisplayNumber { get; init; }
 
-    public string TitleBefore { get; init; } = string.Empty;
-
-    public string TitleMatch { get; init; } = string.Empty;
-
-    public string TitleAfter { get; init; } = string.Empty;
+    /// <summary>Title split into plain/matched runs for highlighting; matched runs may be non-contiguous (fuzzy match).</summary>
+    public IReadOnlyList<TitleSegment> TitleSegments { get; init; } = Array.Empty<TitleSegment>();
 
     public string MetaText { get; init; } = string.Empty;
 
@@ -34,3 +31,6 @@ public sealed partial class SearchResultRow : ObservableObject
     [ObservableProperty]
     private bool _isSelected;
 }
+
+/// <summary>One run of a row's title: either plain text or a fuzzy-match highlight.</summary>
+public readonly record struct TitleSegment(string Text, bool IsMatch);
