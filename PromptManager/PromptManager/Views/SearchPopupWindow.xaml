@@ -42,8 +42,9 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <TextBlock x:Name="NumberText" Grid.Column="0" Text="{Binding DisplayNumber}"
-                                               FontSize="11" FontWeight="Bold" Foreground="{StaticResource Neutral600}"/>
-                                    <StackPanel Grid.Column="1" Margin="0,0,10,0">
+                                               FontSize="11" FontWeight="Bold" Foreground="{StaticResource Neutral600}"
+                                               VerticalAlignment="Top" Margin="0,3,0,0"/>
+                                    <StackPanel Grid.Column="1" Margin="0,0,10,0" VerticalAlignment="Top">
                                         <TextBlock x:Name="TitleText" FontSize="14.5" FontWeight="SemiBold"
                                                    Foreground="{StaticResource Neutral200}"
                                                    behaviors:TitleHighlightBehavior.Segments="{Binding TitleSegments, Mode=OneWay}"/>
@@ -131,6 +132,9 @@
             <!-- body: results list -->
             <ScrollViewer Grid.Row="2" Grid.Column="0" MaxHeight="480" VerticalScrollBarVisibility="Auto"
                           Visibility="{Binding IsResultsVisible, Converter={StaticResource BoolToVisibilityConverter}}">
+                <ScrollViewer.Resources>
+                    <Style TargetType="ScrollBar" BasedOn="{StaticResource ModernScrollBar}"/>
+                </ScrollViewer.Resources>
                 <ItemsControl x:Name="ResultsList" ItemsSource="{Binding Rows}" BorderThickness="0,1,0,0" BorderBrush="{StaticResource DarkDividerFaint}"/>
             </ScrollViewer>
 
