@@ -1,0 +1,30 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AssemblyName>CodeSnippet</AssemblyName>
+    <RootNamespace>CodeSnippet</RootNamespace>
+    <ApplicationIcon>Resources\app.ico</ApplicationIcon>
+    <Authors>ocloc</Authors>
+    <Description>Windows tray utility for managing text prompts and pasting them into any app via a global hotkey.</Description>
+    <!-- todo: temporary solution to fix system tray icon -->
+    <!--<InvariantGlobalization>true</InvariantGlobalization>-->
+    <PublishReadyToRun>true</PublishReadyToRun>
+    <SelfContained>false</SelfContained>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="H.NotifyIcon.Wpf" Version="2.4.1" />
+    <!--<PackageReference Include="Microsoft.Win32.Registry" Version="5.0.0" />-->
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Resources\app.ico" />
+  </ItemGroup>
+
+</Project>
