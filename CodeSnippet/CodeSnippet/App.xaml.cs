@@ -23,7 +23,6 @@ public partial class App : Application
     private TrayIconService _trayIconService = null!;
 
     private SearchPopupWindow _searchPopupWindow = null!;
-    private ManagerWindow? _managerWindow;
     private SettingsWindow? _settingsWindow;
 
     protected override void OnStartup(StartupEventArgs e)
@@ -47,8 +46,6 @@ public partial class App : Application
         _startupService = new StartupService();
 
         var searchViewModel = new SearchPopupViewModel(_repository, _pasteService, _settings.ShowPreviewPane);
-        searchViewModel.CreatePromptRequested += OnCreatePromptRequested;
-        searchViewModel.ImportRequested += OnImportRequested;
         _searchPopupWindow = new SearchPopupWindow(searchViewModel);
 
         // Force the HWND and one full layout/render pass now, so the hotkey path never pays for it.
@@ -62,7 +59,6 @@ public partial class App : Application
         var iconUri = new Uri("pack://application:,,,/Resources/app.ico", UriKind.Absolute);
         _trayIconService = new TrayIconService(iconUri);
         _trayIconService.SearchRequested += (_, _) => _searchPopupWindow.ShowForHotkey();
-        _trayIconService.ManageRequested += (_, _) => ShowManagerWindow();
         _trayIconService.SettingsRequested += (_, _) => ShowSettingsWindow();
         _trayIconService.ExitRequested += (_, _) => Shutdown();
         _trayIconService.Show();
@@ -93,19 +89,6 @@ public partial class App : Application
         _settingsStore.Save(_settings);
     }
 
-    private ManagerWindow EnsureManagerWindow()
-    {
-        _managerWindow ??= new ManagerWindow(new ManagerViewModel(_repository));
-        return _managerWindow;
-    }
-
-    private void ShowManagerWindow()
-    {
-        var window = EnsureManagerWindow();
-        window.Show();
-        window.Activate();
-    }
-
     private void ShowSettingsWindow()
     {
         if (_settingsWindow is null)
@@ -133,22 +116,6 @@ public partial class App : Application
         _settings.ShowPreviewPane = value;
         _settingsStore.Save(_settings);
         _searchPopupWindow.ViewModel.ShowPreviewPane = value;
-    }
-
-    private void OnCreatePromptRequested(string title)
-    {
-        var window = EnsureManagerWindow();
-        window.ViewModel.StartNewPromptWithTitle(title);
-        window.Show();
-        window.Activate();
-    }
-
-    private void OnImportRequested()
-    {
-        var window = EnsureManagerWindow();
-        window.Show();
-        window.Activate();
-        window.ViewModel.ImportCommand.Execute(null);
     }
 
     protected override void OnExit(ExitEventArgs e)

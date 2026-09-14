@@ -97,12 +97,6 @@ public sealed partial class SearchPopupViewModel : ObservableObject
 
     public event Action? Cancelled;
 
-    /// <summary>Enter with no match (or on the first-run screen) — open the Manager with this title prefilled.</summary>
-    public event Action<string>? CreatePromptRequested;
-
-    /// <summary>'I' pressed on the first-run screen — open the Manager and trigger Import directly.</summary>
-    public event Action? ImportRequested;
-
     public SearchPopupViewModel(PromptRepository repository, PasteService pasteService, bool showPreviewPane)
     {
         _repository = repository;
@@ -132,10 +126,16 @@ public sealed partial class SearchPopupViewModel : ObservableObject
     {
         IsHeaderVisible = value is PopupState.Resting or PopupState.Typing or PopupState.NoMatch;
         IsResultsVisible = value is PopupState.Resting or PopupState.Typing;
-        IsPreviewVisible = IsResultsVisible && ShowPreviewPane;
+        RecomputePreviewVisibility();
     }
 
-    partial void OnShowPreviewPaneChanged(bool value) => IsPreviewVisible = IsResultsVisible && value;
+    partial void OnShowPreviewPaneChanged(bool value) => RecomputePreviewVisibility();
+
+    // While editing, the preview/edit pane is the only surface for CRUD (there's no separate Manager
+    // window anymore) — it must stay visible even if the user turned the preview pane off in Settings.
+    partial void OnIsEditingChanged(bool value) => RecomputePreviewVisibility();
+
+    private void RecomputePreviewVisibility() => IsPreviewVisible = IsEditing || (IsResultsVisible && ShowPreviewPane);
 
     partial void OnSelectedIndexChanged(int value) => SyncSelectionHighlight(value);
 
@@ -344,7 +344,7 @@ public sealed partial class SearchPopupViewModel : ObservableObject
         {
             case PopupState.NoMatch:
             case PopupState.FirstRun:
-                CreatePromptRequested?.Invoke(Query.Trim());
+                StartNewPromptWithTitle(Query.Trim());
                 break;
             case PopupState.Copied:
                 break;
@@ -396,7 +396,15 @@ public sealed partial class SearchPopupViewModel : ObservableObject
 
     /// <summary>'I' (or the "Import JSON" button) on the first-run screen — jump straight into Import.</summary>
     [RelayCommand]
-    private void RequestImport() => ImportRequested?.Invoke();
+    private void RequestImport() => ImportPromptsCommand.Execute(null);
+
+    /// <summary>Enter with no match, or on the first-run screen — start a new prompt inline with this title prefilled.</summary>
+    public void StartNewPromptWithTitle(string title)
+    {
+        State = PopupState.Resting;
+        BeginEdit(null);
+        EditTitle = title;
+    }
 
     private bool CanEditSelected() => SelectedPrompt is not null;
 
