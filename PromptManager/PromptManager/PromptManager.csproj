@@ -11,7 +11,8 @@
     <ApplicationIcon>Resources\app.ico</ApplicationIcon>
     <Authors>ocloc</Authors>
     <Description>Windows tray utility for managing text prompts and pasting them into any app via a global hotkey.</Description>
-    <InvariantGlobalization>true</InvariantGlobalization>
+    <!-- todo: temporary solution to fix system tray icon -->
+    <!--<InvariantGlobalization>true</InvariantGlobalization>-->
     <PublishReadyToRun>true</PublishReadyToRun>
     <SelfContained>false</SelfContained>
   </PropertyGroup>
