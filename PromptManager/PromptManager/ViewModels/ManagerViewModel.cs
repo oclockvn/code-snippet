@@ -32,20 +32,78 @@ public sealed partial class ManagerViewModel : ObservableObject
     [ObservableProperty]
     private string _statusMessage = string.Empty;
 
+    [ObservableProperty]
+    private string _filterText = string.Empty;
+
+    [ObservableProperty]
+    private PromptSortMode _sortMode = PromptSortMode.Recent;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowOnboarding))]
+    [NotifyPropertyChangedFor(nameof(ShowEditor))]
+    private bool _isEmpty;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowOnboarding))]
+    [NotifyPropertyChangedFor(nameof(ShowEditor))]
+    private bool _isComposing;
+
+    /// <summary>Empty-library onboarding vs the normal two-pane editor (mocks G and F).</summary>
+    public bool ShowOnboarding => IsEmpty && !IsComposing;
+
+    public bool ShowEditor => !ShowOnboarding;
+
     public ManagerViewModel(PromptRepository repository)
     {
         _repository = repository;
-        foreach (var prompt in repository.Prompts)
+        ApplyFilterAndSort();
+    }
+
+    partial void OnFilterTextChanged(string value) => ApplyFilterAndSort();
+
+    partial void OnSortModeChanged(PromptSortMode value) => ApplyFilterAndSort();
+
+    private void ApplyFilterAndSort()
+    {
+        var previouslySelectedId = SelectedPrompt?.Id;
+
+        IEnumerable<Prompt> source = _repository.Prompts;
+        if (!string.IsNullOrWhiteSpace(FilterText))
+        {
+            var filter = FilterText;
+            source = source.Where(p =>
+                p.Title.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
+                p.Body.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
+                (p.Tags?.Any(t => t.Contains(filter, StringComparison.OrdinalIgnoreCase)) ?? false));
+        }
+
+        var ordered = PromptRepository.OrderBy(source, SortMode);
+
+        Prompts.Clear();
+        foreach (var prompt in ordered)
         {
             Prompts.Add(prompt);
         }
+
+        IsEmpty = _repository.Prompts.Count == 0;
+        SelectedPrompt = previouslySelectedId is { } id
+            ? Prompts.FirstOrDefault(p => p.Id == id)
+            : null;
     }
+
+    [RelayCommand]
+    private void SetSortMode(string mode) => SortMode = Enum.Parse<PromptSortMode>(mode);
 
     partial void OnSelectedPromptChanged(Prompt? value)
     {
         EditTitle = value?.Title ?? string.Empty;
         EditBody = value?.Body ?? string.Empty;
         EditTags = value?.Tags is { Length: > 0 } tags ? string.Join(", ", tags) : string.Empty;
+
+        if (value is not null)
+        {
+            IsComposing = true;
+        }
     }
 
     [RelayCommand]
@@ -56,6 +114,14 @@ public sealed partial class ManagerViewModel : ObservableObject
         EditBody = string.Empty;
         EditTags = string.Empty;
         StatusMessage = string.Empty;
+        IsComposing = true;
+    }
+
+    /// <summary>Opens a blank new-prompt form with the title prefilled, for the popup's "no match" flow.</summary>
+    public void StartNewPromptWithTitle(string title)
+    {
+        New();
+        EditTitle = title;
     }
 
     private bool CanSave() => !string.IsNullOrWhiteSpace(EditTitle) && !string.IsNullOrWhiteSpace(EditBody);
@@ -75,8 +141,8 @@ public sealed partial class ManagerViewModel : ObservableObject
             };
 
             _repository.Add(prompt);
-            Prompts.Add(prompt);
-            SelectedPrompt = prompt;
+            ApplyFilterAndSort();
+            SelectedPrompt = Prompts.FirstOrDefault(p => p.Id == prompt.Id);
         }
         else
         {
@@ -84,9 +150,10 @@ public sealed partial class ManagerViewModel : ObservableObject
             SelectedPrompt.Body = EditBody;
             SelectedPrompt.Tags = tags.Length > 0 ? tags : null;
             _repository.Update(SelectedPrompt);
+            ApplyFilterAndSort();
         }
 
-        StatusMessage = "Saved.";
+        StatusMessage = $"Saved — {_repository.Prompts.Count} prompts on disk.";
     }
 
     private bool CanDelete() => SelectedPrompt is not null;
@@ -100,8 +167,13 @@ public sealed partial class ManagerViewModel : ObservableObject
         }
 
         _repository.Delete(SelectedPrompt.Id);
-        Prompts.Remove(SelectedPrompt);
+        ApplyFilterAndSort();
         New();
+        if (IsEmpty)
+        {
+            IsComposing = false;
+        }
+
         StatusMessage = "Deleted.";
     }
 
@@ -143,12 +215,7 @@ public sealed partial class ManagerViewModel : ObservableObject
             }
 
             var count = _repository.Import(imported);
-
-            Prompts.Clear();
-            foreach (var prompt in _repository.Prompts)
-            {
-                Prompts.Add(prompt);
-            }
+            ApplyFilterAndSort();
 
             StatusMessage = $"Imported {count} prompts.";
         }

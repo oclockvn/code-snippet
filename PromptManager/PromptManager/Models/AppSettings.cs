@@ -7,4 +7,6 @@ public class AppSettings
 
     /// <summary>The <see cref="System.Windows.Input.Key"/> enum value, stored as its underlying int.</summary>
     public int HotkeyKey { get; set; } = 80; // Key.P
+
+    public bool ShowPreviewPane { get; set; } = true;
 }

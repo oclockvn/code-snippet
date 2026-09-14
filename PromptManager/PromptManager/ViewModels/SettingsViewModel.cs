@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Windows.Input;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -8,10 +9,15 @@ namespace PromptManager.ViewModels;
 public sealed partial class SettingsViewModel : ObservableObject
 {
     private readonly StartupService _startupService;
+    private readonly string _dataFolderPath;
     private readonly Action<HotkeyService.Modifiers, Key> _applyHotkey;
+    private readonly Action<bool> _applyShowPreviewPane;
 
     [ObservableProperty]
     private bool _startWithWindows;
+
+    [ObservableProperty]
+    private bool _showPreviewPane;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HotkeyDisplay))]
@@ -28,18 +34,29 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     public SettingsViewModel(
         StartupService startupService,
+        string dataFolderPath,
         HotkeyService.Modifiers currentModifiers,
         Key currentKey,
-        Action<HotkeyService.Modifiers, Key> applyHotkey)
+        bool showPreviewPane,
+        Action<HotkeyService.Modifiers, Key> applyHotkey,
+        Action<bool> applyShowPreviewPane)
     {
         _startupService = startupService;
+        _dataFolderPath = dataFolderPath;
         _applyHotkey = applyHotkey;
+        _applyShowPreviewPane = applyShowPreviewPane;
         _startWithWindows = startupService.IsEnabled();
         _hotkeyModifiers = currentModifiers;
         _hotkeyKey = currentKey;
+        _showPreviewPane = showPreviewPane;
     }
 
+    [RelayCommand]
+    private void ShowDataFolder() => Process.Start(new ProcessStartInfo(_dataFolderPath) { UseShellExecute = true });
+
     partial void OnStartWithWindowsChanged(bool value) => _startupService.SetEnabled(value);
+
+    partial void OnShowPreviewPaneChanged(bool value) => _applyShowPreviewPane(value);
 
     public void SetCapturedHotkey(HotkeyService.Modifiers modifiers, Key key)
     {

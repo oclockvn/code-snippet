@@ -32,6 +32,8 @@ public sealed class PromptRepository
 
     public IReadOnlyList<Prompt> Prompts => _prompts;
 
+    public string FilePath => _filePath;
+
     public event Action<Exception>? SaveFailed;
 
     public void Load()
@@ -87,6 +89,30 @@ public sealed class PromptRepository
         return removed;
     }
 
+    /// <summary>Marks a prompt as used right now: bumps its usage count and last-used timestamp.</summary>
+    public bool RecordUsage(Guid id)
+    {
+        var index = _prompts.FindIndex(p => p.Id == id);
+        if (index < 0)
+        {
+            return false;
+        }
+
+        var prompt = _prompts[index];
+        prompt.UsageCount++;
+        prompt.LastUsedAt = DateTimeOffset.Now;
+        QueueSave();
+        return true;
+    }
+
+    /// <summary>Shared ordering used by both the popup's grouping and the Manager's sort tabs.</summary>
+    public static IEnumerable<Prompt> OrderBy(IEnumerable<Prompt> prompts, PromptSortMode mode) => mode switch
+    {
+        PromptSortMode.MostUsed => prompts.OrderByDescending(p => p.UsageCount).ThenBy(p => p.Title, StringComparer.OrdinalIgnoreCase),
+        PromptSortMode.AZ => prompts.OrderBy(p => p.Title, StringComparer.OrdinalIgnoreCase),
+        _ => prompts.OrderByDescending(p => p.LastUsedAt ?? DateTimeOffset.MinValue).ThenByDescending(p => p.CreatedAt),
+    };
+
     /// <summary>
     /// Fills <paramref name="results"/> (cleared first) with prompts matching <paramref name="query"/>,
     /// title matches ranked before body matches. Hand-rolled single pass, no LINQ, so
@@ -112,7 +138,7 @@ public sealed class PromptRepository
             {
                 _titleMatchBuffer.Add(prompt);
             }
-            else if (prompt.Body.Contains(query, StringComparison.OrdinalIgnoreCase))
+            else if (prompt.Body.Contains(query, StringComparison.OrdinalIgnoreCase) || MatchesAnyTag(prompt.Tags, query))
             {
                 _bodyMatchBuffer.Add(prompt);
             }
@@ -120,6 +146,24 @@ public sealed class PromptRepository
 
         results.AddRange(_titleMatchBuffer);
         results.AddRange(_bodyMatchBuffer);
+    }
+
+    private static bool MatchesAnyTag(string[]? tags, string query)
+    {
+        if (tags is null)
+        {
+            return false;
+        }
+
+        for (var i = 0; i < tags.Length; i++)
+        {
+            if (tags[i].Contains(query, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /// <summary>Upserts by Id. Returns the number of prompts processed.</summary>

@@ -32,11 +32,11 @@ public sealed class TrayIconService : IDisposable
     {
         var menu = new ContextMenu();
 
-        var search = new MenuItem { Header = "Search Prompts" };
+        var search = new MenuItem { Header = "Search prompts" };
         search.Click += (_, _) => SearchRequested?.Invoke(this, EventArgs.Empty);
         menu.Items.Add(search);
 
-        var manage = new MenuItem { Header = "Manage Prompts..." };
+        var manage = new MenuItem { Header = "Manage library" };
         manage.Click += (_, _) => ManageRequested?.Invoke(this, EventArgs.Empty);
         menu.Items.Add(manage);
 

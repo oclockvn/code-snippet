@@ -1,7 +1,6 @@
 using System.Windows;
 using System.Windows.Input;
 using PromptManager.Models;
-using PromptManager.Services;
 using PromptManager.ViewModels;
 
 namespace PromptManager.Views;
@@ -9,14 +8,14 @@ namespace PromptManager.Views;
 public partial class SearchPopupWindow : Window
 {
     private readonly SearchPopupViewModel _viewModel;
-    private readonly PasteService _pasteService;
 
-    public SearchPopupWindow(SearchPopupViewModel viewModel, PasteService pasteService)
+    public SearchPopupViewModel ViewModel => _viewModel;
+
+    public SearchPopupWindow(SearchPopupViewModel viewModel)
     {
         InitializeComponent();
 
         _viewModel = viewModel;
-        _pasteService = pasteService;
         DataContext = _viewModel;
 
         _viewModel.PromptChosen += OnPromptChosen;
@@ -43,14 +42,17 @@ public partial class SearchPopupWindow : Window
 
     private void HideBack() => Visibility = Visibility.Hidden;
 
-    private async void OnPromptChosen(Prompt prompt)
-    {
-        HideBack();
-        await _pasteService.CopyToClipboardAsync(prompt.Body);
-    }
+    private void OnPromptChosen(Prompt prompt) => HideBack();
 
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
     {
+        if (Keyboard.Modifiers == ModifierKeys.Alt && TryGetDigit(e.Key, out var digit))
+        {
+            _viewModel.JumpToDisplayNumber(digit);
+            e.Handled = true;
+            return;
+        }
+
         switch (e.Key)
         {
             case Key.Escape:
@@ -69,7 +71,23 @@ public partial class SearchPopupWindow : Window
                 _viewModel.MoveSelectionUpCommand.Execute(null);
                 e.Handled = true;
                 break;
+            case Key.I when _viewModel.State == PopupState.FirstRun:
+                _viewModel.RequestImportCommand.Execute(null);
+                e.Handled = true;
+                break;
         }
+    }
+
+    private static bool TryGetDigit(Key key, out int digit)
+    {
+        if (key is >= Key.D1 and <= Key.D9)
+        {
+            digit = key - Key.D0;
+            return true;
+        }
+
+        digit = 0;
+        return false;
     }
 
     protected override void OnDeactivated(EventArgs e)
