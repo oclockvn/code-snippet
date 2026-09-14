@@ -1,3 +1,5 @@
+using System.ComponentModel;
+using System.Linq;
 using System.Windows;
 using System.Windows.Input;
 using PromptManager.Models;
@@ -20,6 +22,30 @@ public partial class SearchPopupWindow : Window
 
         _viewModel.PromptChosen += OnPromptChosen;
         _viewModel.Cancelled += HideBack;
+        _viewModel.PropertyChanged += OnViewModelPropertyChanged;
+    }
+
+    // ItemsControl (unlike ListBox) doesn't auto-scroll its selection into view, so drive it manually.
+    private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName != nameof(SearchPopupViewModel.SelectedIndex))
+        {
+            return;
+        }
+
+        var row = _viewModel.Rows.FirstOrDefault(r => r.SelectableIndex == _viewModel.SelectedIndex);
+        if (row is null)
+        {
+            return;
+        }
+
+        Dispatcher.BeginInvoke(() =>
+        {
+            if (ResultsList.ItemContainerGenerator.ContainerFromItem(row) is FrameworkElement container)
+            {
+                container.BringIntoView();
+            }
+        });
     }
 
     public void ShowForHotkey()

@@ -134,7 +134,7 @@
             <!-- body: results list -->
             <ScrollViewer Grid.Row="2" Grid.Column="0" MaxHeight="480" VerticalScrollBarVisibility="Auto"
                           Visibility="{Binding IsResultsVisible, Converter={StaticResource BoolToVisibilityConverter}}">
-                <ItemsControl ItemsSource="{Binding Rows}" BorderThickness="0,1,0,0" BorderBrush="{StaticResource DarkDividerFaint}"/>
+                <ItemsControl x:Name="ResultsList" ItemsSource="{Binding Rows}" BorderThickness="0,1,0,0" BorderBrush="{StaticResource DarkDividerFaint}"/>
             </ScrollViewer>
 
             <!-- body: preview pane -->
