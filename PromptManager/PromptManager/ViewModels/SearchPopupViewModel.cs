@@ -305,15 +305,6 @@ public sealed partial class SearchPopupViewModel : ObservableObject
     }
 
     /// <summary>Alt+1..Alt+9 jump-select, per the popup's "Alt + N Jump" hint. 1-based, no-op out of range.</summary>
-    public void JumpToDisplayNumber(int displayNumber)
-    {
-        var target = displayNumber - 1;
-        if (target >= 0 && target < _selectable.Count)
-        {
-            SelectedIndex = target;
-        }
-    }
-
     [RelayCommand]
     private void Confirm()
     {
@@ -340,7 +331,6 @@ public sealed partial class SearchPopupViewModel : ObservableObject
         }
 
         SelectedIndex = row.SelectableIndex;
-        ChooseSelected();
     }
 
     private void ChooseSelected()

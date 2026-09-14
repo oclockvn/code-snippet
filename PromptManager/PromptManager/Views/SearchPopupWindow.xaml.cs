@@ -72,13 +72,6 @@ public partial class SearchPopupWindow : Window
 
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
     {
-        if (Keyboard.Modifiers == ModifierKeys.Alt && TryGetDigit(e.Key, out var digit))
-        {
-            _viewModel.JumpToDisplayNumber(digit);
-            e.Handled = true;
-            return;
-        }
-
         switch (e.Key)
         {
             case Key.Escape:
@@ -102,18 +95,6 @@ public partial class SearchPopupWindow : Window
                 e.Handled = true;
                 break;
         }
-    }
-
-    private static bool TryGetDigit(Key key, out int digit)
-    {
-        if (key is >= Key.D1 and <= Key.D9)
-        {
-            digit = key - Key.D0;
-            return true;
-        }
-
-        digit = 0;
-        return false;
     }
 
     protected override void OnDeactivated(EventArgs e)

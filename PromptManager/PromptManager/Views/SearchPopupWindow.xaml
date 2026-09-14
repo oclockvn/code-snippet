@@ -264,7 +264,6 @@
                 <StackPanel Orientation="Horizontal">
                     <TextBlock Text="↑ ↓  Move" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource Neutral500}" Margin="0,0,20,0"/>
                     <TextBlock Text="⏎  Copy" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource Neutral500}" Margin="0,0,20,0"/>
-                    <TextBlock Text="Alt + N  Jump" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource Neutral500}" Margin="0,0,20,0"/>
                     <TextBlock Text="Esc  Close" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource Neutral500}"/>
                 </StackPanel>
                 <TextBlock Grid.Column="1" Text="Copies to clipboard — paste with Ctrl + V" FontSize="10.5"
