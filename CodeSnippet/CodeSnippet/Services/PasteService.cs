@@ -10,18 +10,15 @@ public sealed class PasteService
 {
     // Clipboard.SetText can throw COMException if another process has the clipboard open
     // momentarily -- a known flaky Win32 API, so retry a couple of times with a short backoff.
-    public Task<bool> CopyToClipboardAsync(string text)
+    // Clipboard access requires the UI (STA) thread, so the retry stays on the calling thread and
+    // awaits Task.Delay instead of Thread.Sleep, so the backoff doesn't block the UI dispatcher.
+    public async Task<bool> CopyToClipboardAsync(string text)
     {
         if (string.IsNullOrEmpty(text))
         {
-            return Task.FromResult(false);
+            return false;
         }
 
-        return Task.FromResult(TrySetClipboardText(text));
-    }
-
-    private static bool TrySetClipboardText(string text)
-    {
         for (var attempt = 0; attempt < 3; attempt++)
         {
             try
@@ -31,7 +28,7 @@ public sealed class PasteService
             }
             catch (COMException)
             {
-                Thread.Sleep(15);
+                await Task.Delay(15);
             }
         }
 

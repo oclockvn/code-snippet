@@ -45,6 +45,13 @@ public static class TitleHighlightBehavior
         }
     }
 
-    private static readonly System.Windows.Media.Brush MatchHighlightBrush =
-        (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#38FF9783")!;
+    private static readonly System.Windows.Media.Brush MatchHighlightBrush = CreateFrozenHighlightBrush();
+
+    // Frozen so WPF can share it across renders/threads without change-notification overhead.
+    private static System.Windows.Media.Brush CreateFrozenHighlightBrush()
+    {
+        var brush = (System.Windows.Media.Brush)new System.Windows.Media.BrushConverter().ConvertFromString("#38FF9783")!;
+        brush.Freeze();
+        return brush;
+    }
 }

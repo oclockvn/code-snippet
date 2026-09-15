@@ -9,7 +9,6 @@
                 <ResourceDictionary Source="Resources/Styles.xaml"/>
             </ResourceDictionary.MergedDictionaries>
 
-            <conv:RelativeTimeConverter x:Key="RelativeTimeConverter"/>
             <conv:UpperCaseConverter x:Key="UpperCaseConverter"/>
             <conv:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
             <conv:EnumEqualsVisibilityConverter x:Key="EnumEqualsVisibilityConverter"/>

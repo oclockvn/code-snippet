@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.IO;
 using System.Windows.Input;
 using CodeSnippet.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -51,8 +52,14 @@ public sealed partial class SettingsViewModel : ObservableObject
         _showPreviewPane = showPreviewPane;
     }
 
+    // The data folder is only created lazily on the first save, so it may not exist yet
+    // (e.g. a fresh install where nothing has been added or changed).
     [RelayCommand]
-    private void ShowDataFolder() => Process.Start(new ProcessStartInfo(_dataFolderPath) { UseShellExecute = true });
+    private void ShowDataFolder()
+    {
+        Directory.CreateDirectory(_dataFolderPath);
+        Process.Start(new ProcessStartInfo(_dataFolderPath) { UseShellExecute = true });
+    }
 
     partial void OnStartWithWindowsChanged(bool value) => _startupService.SetEnabled(value);
 

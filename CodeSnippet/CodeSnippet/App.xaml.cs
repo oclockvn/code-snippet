@@ -14,6 +14,7 @@ public partial class App : Application
     private const string MutexName = "CodeSnippet.SingleInstance.Mutex";
 
     private Mutex? _singleInstanceMutex;
+    private bool _ownsSingleInstanceMutex;
     private PromptRepository _repository = null!;
     private AppSettingsStore _settingsStore = null!;
     private AppSettings _settings = null!;
@@ -30,6 +31,7 @@ public partial class App : Application
         base.OnStartup(e);
 
         _singleInstanceMutex = new Mutex(initiallyOwned: true, MutexName, out var createdNew);
+        _ownsSingleInstanceMutex = createdNew;
         if (!createdNew)
         {
             Shutdown();
@@ -122,7 +124,13 @@ public partial class App : Application
     {
         _hotkeyService?.Dispose();
         _trayIconService?.Dispose();
-        _singleInstanceMutex?.ReleaseMutex();
+        // A second launch shuts down without ever owning the mutex (createdNew was false) — releasing
+        // it in that case throws, since the calling thread doesn't hold it.
+        if (_ownsSingleInstanceMutex)
+        {
+            _singleInstanceMutex?.ReleaseMutex();
+        }
+
         base.OnExit(e);
     }
 }

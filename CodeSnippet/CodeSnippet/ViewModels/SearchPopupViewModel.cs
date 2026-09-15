@@ -15,13 +15,11 @@ public sealed partial class SearchPopupViewModel : ObservableObject
 {
     // Keeps the popup's visual tree small and render cost low, per the <100ms show budget.
     private const int MaxVisibleResults = 30;
-    private const int RecentGroupSize = 5;
 
     private readonly PromptRepository _repository;
     private readonly PasteService _pasteService;
-    private readonly List<Prompt> _searchBuffer = new();
+    private readonly List<PromptMatch> _searchBuffer = new();
     private readonly List<SearchResultRow> _selectable = new();
-    private readonly List<(int Start, int Length)> _highlightRangeBuffer = new();
     private readonly DispatcherTimer _copiedTimer;
     private Prompt? _pendingHide;
 
@@ -191,9 +189,9 @@ public sealed partial class SearchPopupViewModel : ObservableObject
             else
             {
                 State = PopupState.Typing;
-                foreach (var prompt in _searchBuffer)
+                foreach (var match in _searchBuffer)
                 {
-                    AddItemRow(prompt, Query, includeTimestamp: false);
+                    AddItemRow(match.Prompt, match.TitleRanges);
                 }
 
                 CountBadgeText = $"{_selectable.Count} of {TotalCount}";
@@ -205,54 +203,27 @@ public sealed partial class SearchPopupViewModel : ObservableObject
         SyncSelectionHighlight(newIndex);
     }
 
+    // No LINQ / no sort: with no query, prompts are shown as stored, capped to the visible budget.
     private void BuildRestingRows()
     {
-        var recent = _repository.Prompts
-            .Where(p => p.LastUsedAt is not null)
-            .OrderByDescending(p => p.LastUsedAt)
-            .Take(RecentGroupSize)
-            .ToList();
-
-        var recentIds = new HashSet<Guid>(recent.Select(p => p.Id));
-
-        var remainingSlots = Math.Max(0, MaxVisibleResults - recent.Count);
-        var mostUsed = _repository.Prompts
-            .Where(p => !recentIds.Contains(p.Id))
-            .OrderByDescending(p => p.UsageCount)
-            .ThenBy(p => p.Title, StringComparer.OrdinalIgnoreCase)
-            .Take(remainingSlots)
-            .ToList();
-
-        AppendGroup("Recent", recent);
-        AppendGroup("Most used", mostUsed);
-    }
-
-    private void AppendGroup(string header, List<Prompt> prompts)
-    {
-        if (prompts.Count == 0)
+        var prompts = _repository.Prompts;
+        var count = Math.Min(prompts.Count, MaxVisibleResults);
+        for (var i = 0; i < count; i++)
         {
-            return;
-        }
-
-        Rows.Add(new SearchResultRow { GroupHeader = header });
-        foreach (var prompt in prompts)
-        {
-            AddItemRow(prompt, highlightQuery: null, includeTimestamp: true);
+            AddItemRow(prompts[i], titleRanges: null);
         }
     }
 
-    private void AddItemRow(Prompt prompt, string? highlightQuery, bool includeTimestamp)
+    private void AddItemRow(Prompt prompt, IReadOnlyList<(int Start, int Length)>? titleRanges)
     {
         var index = _selectable.Count;
 
         var row = new SearchResultRow
         {
-            GroupHeader = null,
             Prompt = prompt,
             SelectableIndex = index,
             DisplayNumber = index + 1,
-            TitleSegments = BuildTitleSegments(prompt.Title, highlightQuery),
-            MetaText = BuildMetaText(prompt, includeTimestamp),
+            TitleSegments = BuildTitleSegments(prompt.Title, titleRanges),
             BodyPreview = ToSingleLine(prompt.Body),
         };
 
@@ -260,17 +231,17 @@ public sealed partial class SearchPopupViewModel : ObservableObject
         _selectable.Add(row);
     }
 
-    private List<TitleSegment> BuildTitleSegments(string title, string? query)
+    private static List<TitleSegment> BuildTitleSegments(string title, IReadOnlyList<(int Start, int Length)>? ranges)
     {
-        if (string.IsNullOrEmpty(query) || !FuzzyMatcher.TryMatch(title, query, out _, _highlightRangeBuffer))
+        if (ranges is null || ranges.Count == 0)
         {
             return new List<TitleSegment> { new(title, IsMatch: false) };
         }
 
-        var segments = new List<TitleSegment>(_highlightRangeBuffer.Count * 2 + 1);
+        var segments = new List<TitleSegment>(ranges.Count * 2 + 1);
         var pos = 0;
 
-        foreach (var (start, length) in _highlightRangeBuffer)
+        foreach (var (start, length) in ranges)
         {
             if (start > pos)
             {
@@ -303,16 +274,6 @@ public sealed partial class SearchPopupViewModel : ObservableObject
     }
 
     private static readonly char[] NewlineChars = { '\r', '\n' };
-
-    private static string BuildMetaText(Prompt prompt, bool includeTimestamp)
-    {
-        if (includeTimestamp && prompt.LastUsedAt is { } lastUsed)
-        {
-            return $"{RelativeTimeFormatter.Format(lastUsed, sentenceCase: false)} · {prompt.UsageCount}×";
-        }
-
-        return $"{prompt.UsageCount}×";
-    }
 
     [RelayCommand]
     private void MoveSelectionDown()
@@ -357,7 +318,7 @@ public sealed partial class SearchPopupViewModel : ObservableObject
     [RelayCommand]
     private void ChooseRow(SearchResultRow? row)
     {
-        if (row is null || row.IsHeader)
+        if (row is null)
         {
             return;
         }
@@ -372,9 +333,8 @@ public sealed partial class SearchPopupViewModel : ObservableObject
             return;
         }
 
-        var prompt = _selectable[SelectedIndex].Prompt!;
+        var prompt = _selectable[SelectedIndex].Prompt;
         _ = _pasteService.CopyToClipboardAsync(prompt.Body);
-        _repository.RecordUsage(prompt.Id);
 
         CopiedTitle = prompt.Title;
         State = PopupState.Copied;
@@ -581,7 +541,7 @@ public sealed partial class SearchPopupViewModel : ObservableObject
 
     private void SelectById(Guid id)
     {
-        var index = _selectable.FindIndex(r => r.Prompt?.Id == id);
+        var index = _selectable.FindIndex(r => r.Prompt.Id == id);
         SelectedIndex = index >= 0 ? index : (_selectable.Count > 0 ? 0 : -1);
         SyncSelectionHighlight(SelectedIndex);
     }

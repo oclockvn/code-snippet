@@ -19,60 +19,48 @@
 
     <Window.Resources>
 
-        <!-- One prompt row: a group-header strip, or a clickable item row with title-highlight. -->
+        <!-- One prompt row: a clickable item row with title-highlight. -->
         <DataTemplate DataType="{x:Type vm:SearchResultRow}">
-            <Grid>
-                <TextBlock Text="{Binding GroupHeader, Converter={StaticResource UpperCaseConverter}}"
-                           Visibility="{Binding IsHeader, Converter={StaticResource BoolToVisibilityConverter}}"
-                           Padding="20,7" FontSize="10" FontWeight="Bold" Foreground="{StaticResource Neutral600}"
-                           Background="#0AF8F4F4"/>
-
-                <Button Visibility="{Binding IsHeader, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}"
-                        Command="{Binding DataContext.ChooseRowCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                        CommandParameter="{Binding}"
-                        HorizontalContentAlignment="Stretch">
-                    <Button.Template>
-                        <ControlTemplate TargetType="Button">
-                            <Border x:Name="RowBorder" Padding="20,11" BorderThickness="4,0,0,0"
-                                    BorderBrush="{StaticResource DarkDividerFaint}">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="16"/>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <TextBlock x:Name="NumberText" Grid.Column="0" Text="{Binding DisplayNumber}"
-                                               FontSize="11" FontWeight="Bold" Foreground="{StaticResource Neutral600}"
-                                               VerticalAlignment="Top" Margin="0,3,0,0"/>
-                                    <StackPanel Grid.Column="1" Margin="0,0,10,0" VerticalAlignment="Top">
-                                        <TextBlock x:Name="TitleText" FontSize="14.5" FontWeight="SemiBold"
-                                                   Foreground="{StaticResource Neutral200}"
-                                                   behaviors:TitleHighlightBehavior.Segments="{Binding TitleSegments, Mode=OneWay}"/>
-                                        <TextBlock x:Name="BodyText" Text="{Binding BodyPreview}" FontSize="12"
-                                                   Foreground="{StaticResource Neutral500}" Margin="0,2,0,0"
-                                                   TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
-                                    </StackPanel>
-                                    <TextBlock x:Name="MetaTextBlock" Grid.Column="2" Text="{Binding MetaText}"
-                                               FontSize="10" FontWeight="Bold" Foreground="{StaticResource Neutral600}"/>
-                                </Grid>
-                            </Border>
-                            <ControlTemplate.Triggers>
-                                <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter TargetName="RowBorder" Property="Background" Value="#0AF8F4F4"/>
-                                </Trigger>
-                                <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                    <Setter TargetName="RowBorder" Property="Background" Value="{StaticResource ColorAccent}"/>
-                                    <Setter TargetName="RowBorder" Property="BorderBrush" Value="{StaticResource Neutral100}"/>
-                                    <Setter TargetName="TitleText" Property="Foreground" Value="{StaticResource Neutral100}"/>
-                                    <Setter TargetName="BodyText" Property="Foreground" Value="#D8F8F4F4"/>
-                                    <Setter TargetName="MetaTextBlock" Property="Foreground" Value="#D8F8F4F4"/>
-                                    <Setter TargetName="NumberText" Property="Foreground" Value="#BFF8F4F4"/>
-                                </DataTrigger>
-                            </ControlTemplate.Triggers>
-                        </ControlTemplate>
-                    </Button.Template>
-                </Button>
-            </Grid>
+            <Button Command="{Binding DataContext.ChooseRowCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                    CommandParameter="{Binding}"
+                    HorizontalContentAlignment="Stretch">
+                <Button.Template>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="RowBorder" Padding="20,11" BorderThickness="4,0,0,0"
+                                BorderBrush="{StaticResource DarkDividerFaint}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="16"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock x:Name="NumberText" Grid.Column="0" Text="{Binding DisplayNumber}"
+                                           FontSize="11" FontWeight="Bold" Foreground="{StaticResource Neutral600}"
+                                           VerticalAlignment="Top" Margin="0,3,0,0"/>
+                                <StackPanel Grid.Column="1" VerticalAlignment="Top">
+                                    <TextBlock x:Name="TitleText" FontSize="14.5" FontWeight="SemiBold"
+                                               Foreground="{StaticResource Neutral200}"
+                                               behaviors:TitleHighlightBehavior.Segments="{Binding TitleSegments, Mode=OneWay}"/>
+                                    <TextBlock x:Name="BodyText" Text="{Binding BodyPreview}" FontSize="12"
+                                               Foreground="{StaticResource Neutral500}" Margin="0,2,0,0"
+                                               TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="RowBorder" Property="Background" Value="#0AF8F4F4"/>
+                            </Trigger>
+                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                <Setter TargetName="RowBorder" Property="Background" Value="{StaticResource ColorAccent}"/>
+                                <Setter TargetName="RowBorder" Property="BorderBrush" Value="{StaticResource Neutral100}"/>
+                                <Setter TargetName="TitleText" Property="Foreground" Value="{StaticResource Neutral100}"/>
+                                <Setter TargetName="BodyText" Property="Foreground" Value="#D8F8F4F4"/>
+                                <Setter TargetName="NumberText" Property="Foreground" Value="#BFF8F4F4"/>
+                            </DataTrigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Button.Template>
+            </Button>
         </DataTemplate>
 
     </Window.Resources>
@@ -81,6 +69,11 @@
         <Border.Effect>
             <DropShadowEffect BlurRadius="40" ShadowDepth="10" Opacity="0.35" Color="Black"/>
         </Border.Effect>
+        <!-- The window's content doesn't change shape while shown, so cache the blurred-shadow render
+             to a bitmap instead of re-rasterizing the effect on every frame. -->
+        <Border.CacheMode>
+            <BitmapCache/>
+        </Border.CacheMode>
 
         <Grid>
             <Grid.ColumnDefinitions>
@@ -135,7 +128,16 @@
                 <ScrollViewer.Resources>
                     <Style TargetType="ScrollBar" BasedOn="{StaticResource ModernScrollBar}"/>
                 </ScrollViewer.Resources>
-                <ItemsControl x:Name="ResultsList" ItemsSource="{Binding Rows}" BorderThickness="0,1,0,0" BorderBrush="{StaticResource DarkDividerFaint}"/>
+                <ItemsControl x:Name="ResultsList" ItemsSource="{Binding Rows}" BorderThickness="0,1,0,0" BorderBrush="{StaticResource DarkDividerFaint}"
+                              ScrollViewer.CanContentScroll="True"
+                              VirtualizingPanel.IsVirtualizing="True"
+                              VirtualizingPanel.VirtualizationMode="Recycling">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <VirtualizingStackPanel/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                </ItemsControl>
             </ScrollViewer>
 
             <!-- body: preview pane -->
