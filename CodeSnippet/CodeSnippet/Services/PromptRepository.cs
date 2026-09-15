@@ -5,6 +5,10 @@ using CodeSnippet.Models;
 
 namespace CodeSnippet.Services;
 
+/// <summary>One search result: the matched prompt, plus its title's fuzzy-match highlight ranges
+/// (null for a body/tag match, or when there was no query).</summary>
+public readonly record struct PromptMatch(Prompt Prompt, IReadOnlyList<(int Start, int Length)>? TitleRanges);
+
 /// <summary>
 /// In-memory prompt store backed by a flat JSON file. All reads and mutations are synchronous
 /// against the in-memory list (sub-millisecond at the dataset sizes this app targets); persistence
@@ -14,9 +18,10 @@ public sealed class PromptRepository
 {
     private readonly string _filePath;
     private readonly List<Prompt> _prompts = new();
-    private readonly List<(Prompt Prompt, int Score)> _titleMatchBuffer = new();
+    private readonly List<(Prompt Prompt, int Score, (int Start, int Length)[] Ranges)> _titleMatchBuffer = new();
     private readonly List<Prompt> _bodyMatchBuffer = new();
     private readonly List<(int Start, int Length)> _rangeScratch = new();
+    private readonly FuzzyMatcher.Scratch _matchScratch = new();
 
     private readonly object _saveGate = new();
     private List<Prompt>? _pendingSnapshot;
@@ -91,35 +96,24 @@ public sealed class PromptRepository
         return removed;
     }
 
-    /// <summary>Marks a prompt as used right now: bumps its usage count and last-used timestamp.</summary>
-    public bool RecordUsage(Guid id)
-    {
-        var index = _prompts.FindIndex(p => p.Id == id);
-        if (index < 0)
-        {
-            return false;
-        }
-
-        var prompt = _prompts[index];
-        prompt.UsageCount++;
-        prompt.LastUsedAt = DateTimeOffset.Now;
-        QueueSave();
-        return true;
-    }
-
     /// <summary>
     /// Fills <paramref name="results"/> (cleared first) with prompts matching <paramref name="query"/>.
     /// Titles are fuzzy-matched (VS Code Quick Open style) and ranked by score, above any body/tag
     /// substring matches. Hand-rolled single pass, no LINQ, so keystroke-driven filtering doesn't
-    /// allocate iterators/closures on the hot path.
+    /// allocate iterators/closures on the hot path. Each title match's highlight ranges are captured
+    /// once here (via a pooled DP scratch buffer) rather than recomputed later for display.
     /// </summary>
-    public void Search(string query, List<Prompt> results)
+    public void Search(string query, List<PromptMatch> results)
     {
         results.Clear();
 
         if (string.IsNullOrWhiteSpace(query))
         {
-            results.AddRange(_prompts);
+            for (var i = 0; i < _prompts.Count; i++)
+            {
+                results.Add(new PromptMatch(_prompts[i], null));
+            }
+
             return;
         }
 
@@ -129,9 +123,9 @@ public sealed class PromptRepository
         for (var i = 0; i < _prompts.Count; i++)
         {
             var prompt = _prompts[i];
-            if (FuzzyMatcher.TryMatch(prompt.Title, query, out var score, _rangeScratch))
+            if (FuzzyMatcher.TryMatch(prompt.Title, query, out var score, _rangeScratch, _matchScratch))
             {
-                _titleMatchBuffer.Add((prompt, score));
+                _titleMatchBuffer.Add((prompt, score, _rangeScratch.ToArray()));
             }
             else if (prompt.Body.Contains(query, StringComparison.OrdinalIgnoreCase) || MatchesAnyTag(prompt.Tags, query))
             {
@@ -143,10 +137,13 @@ public sealed class PromptRepository
 
         for (var i = 0; i < _titleMatchBuffer.Count; i++)
         {
-            results.Add(_titleMatchBuffer[i].Prompt);
+            results.Add(new PromptMatch(_titleMatchBuffer[i].Prompt, _titleMatchBuffer[i].Ranges));
         }
 
-        results.AddRange(_bodyMatchBuffer);
+        for (var i = 0; i < _bodyMatchBuffer.Count; i++)
+        {
+            results.Add(new PromptMatch(_bodyMatchBuffer[i], null));
+        }
     }
 
     private static bool MatchesAnyTag(string[]? tags, string query)

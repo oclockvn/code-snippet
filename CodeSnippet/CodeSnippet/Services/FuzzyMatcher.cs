@@ -17,12 +17,39 @@ public static class FuzzyMatcher
     private const int NegInf = int.MinValue / 4;
 
     /// <summary>
+    /// Reusable DP buffers for <see cref="TryMatch"/>, grown on demand and never shrunk, so repeated
+    /// calls (e.g. once per prompt on every keystroke) don't allocate two 2D arrays each time.
+    /// Not thread-safe — one instance per caller that only ever matches on one thread at a time.
+    /// </summary>
+    public sealed class Scratch
+    {
+        internal int[,] Dp = new int[0, 0];
+        internal int[,] Best = new int[0, 0];
+        internal int[] Positions = Array.Empty<int>();
+
+        internal void EnsureCapacity(int n, int m)
+        {
+            if (Dp.GetLength(0) < n + 1 || Dp.GetLength(1) < m + 1)
+            {
+                Dp = new int[n + 1, m + 1];
+                Best = new int[n + 1, m + 1];
+            }
+
+            if (Positions.Length < n)
+            {
+                Positions = new int[n];
+            }
+        }
+    }
+
+    /// <summary>
     /// Attempts to match <paramref name="query"/> as a fuzzy subsequence of <paramref name="text"/>.
     /// On success, <paramref name="score"/> is higher for better matches and <paramref name="ranges"/>
     /// (cleared first) is filled with the matched, non-overlapping (Start, Length) spans in
-    /// ascending order, suitable for highlighting.
+    /// ascending order, suitable for highlighting. <paramref name="scratch"/> supplies the DP buffers;
+    /// reuse the same instance across calls to avoid allocating per match.
     /// </summary>
-    public static bool TryMatch(string text, string query, out int score, List<(int Start, int Length)> ranges)
+    public static bool TryMatch(string text, string query, out int score, List<(int Start, int Length)> ranges, Scratch scratch)
     {
         ranges.Clear();
         score = 0;
@@ -42,8 +69,9 @@ public static class FuzzyMatcher
 
         // dp[i, j]: best score matching query[0..i) with query[i-1] matched exactly at text[j-1].
         // best[i, j]: best score matching query[0..i) somewhere within text[0..j) (running max over dp[i, 1..j]).
-        var dp = new int[n + 1, m + 1];
-        var best = new int[n + 1, m + 1];
+        scratch.EnsureCapacity(n, m);
+        var dp = scratch.Dp;
+        var best = scratch.Best;
 
         for (var j = 0; j <= m; j++)
         {
@@ -88,13 +116,12 @@ public static class FuzzyMatcher
         }
 
         score = best[n, m];
-        AppendRanges(dp, best, text, n, m, ranges);
+        AppendRanges(dp, best, text, n, m, ranges, scratch.Positions);
         return true;
     }
 
-    private static void AppendRanges(int[,] dp, int[,] best, string text, int n, int m, List<(int Start, int Length)> ranges)
+    private static void AppendRanges(int[,] dp, int[,] best, string text, int n, int m, List<(int Start, int Length)> ranges, int[] positions)
     {
-        var positions = new int[n];
         var i = n;
         var j = m;
 
@@ -129,7 +156,7 @@ public static class FuzzyMatcher
 
         var rangeStart = positions[0];
         var rangeLength = 1;
-        for (var k = 1; k < positions.Length; k++)
+        for (var k = 1; k < n; k++)
         {
             if (positions[k] == positions[k - 1] + 1)
             {
