@@ -4,7 +4,6 @@ using System.Windows;
 using System.Windows.Input;
 using CodeSnippet.Models;
 using CodeSnippet.ViewModels;
-using CodeSnippet.ViewModels;
 
 namespace CodeSnippet.Views;
 
@@ -21,7 +20,7 @@ public partial class SearchPopupWindow : Window
         _viewModel = viewModel;
         DataContext = _viewModel;
 
-        _viewModel.PromptChosen += OnPromptChosen;
+        _viewModel.FileChosen += OnFileChosen;
         _viewModel.Cancelled += HideBack;
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
     }
@@ -69,28 +68,10 @@ public partial class SearchPopupWindow : Window
 
     private void HideBack() => Visibility = Visibility.Hidden;
 
-    private void OnPromptChosen(Prompt prompt) => HideBack();
+    private void OnFileChosen(VaultFile file) => HideBack();
 
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
     {
-        if (_viewModel.IsEditing)
-        {
-            // Let Enter/Up/Down behave normally inside the edit textboxes (newline, caret movement);
-            // only Escape (cancel) and Ctrl+S (save) are intercepted globally.
-            if (e.Key == Key.Escape)
-            {
-                _viewModel.CancelEditCommand.Execute(null);
-                e.Handled = true;
-            }
-            else if (e.Key == Key.S && Keyboard.Modifiers == ModifierKeys.Control && _viewModel.SaveEditCommand.CanExecute(null))
-            {
-                _viewModel.SaveEditCommand.Execute(null);
-                e.Handled = true;
-            }
-
-            return;
-        }
-
         switch (e.Key)
         {
             case Key.Escape:
@@ -109,17 +90,13 @@ public partial class SearchPopupWindow : Window
                 _viewModel.MoveSelectionUpCommand.Execute(null);
                 e.Handled = true;
                 break;
-            case Key.I when _viewModel.State == PopupState.FirstRun:
-                _viewModel.RequestImportCommand.Execute(null);
-                e.Handled = true;
-                break;
         }
     }
 
     protected override void OnDeactivated(EventArgs e)
     {
         base.OnDeactivated(e);
-        if (Visibility == Visibility.Visible && !_viewModel.IsModalOpen)
+        if (Visibility == Visibility.Visible)
         {
             HideBack();
         }

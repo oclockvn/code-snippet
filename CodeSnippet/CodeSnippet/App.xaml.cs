@@ -1,4 +1,3 @@
-using System.IO;
 using System.Threading;
 using System.Windows;
 using System.Windows.Input;
@@ -15,7 +14,7 @@ public partial class App : Application
 
     private Mutex? _singleInstanceMutex;
     private bool _ownsSingleInstanceMutex;
-    private PromptRepository _repository = null!;
+    private VaultIndexService _vaultIndex = null!;
     private AppSettingsStore _settingsStore = null!;
     private AppSettings _settings = null!;
     private HotkeyService _hotkeyService = null!;
@@ -38,16 +37,17 @@ public partial class App : Application
             return;
         }
 
-        _repository = new PromptRepository();
-        _repository.Load();
-
         _settingsStore = new AppSettingsStore();
         _settings = _settingsStore.Load();
+
+        _vaultIndex = new VaultIndexService();
+        _vaultIndex.SetVaultPath(_settings.VaultPath);
 
         _pasteService = new PasteService();
         _startupService = new StartupService();
 
-        var searchViewModel = new SearchPopupViewModel(_repository, _pasteService, _settings.ShowPreviewPane);
+        var searchViewModel = new SearchPopupViewModel(_vaultIndex, _pasteService);
+        searchViewModel.SettingsRequested += OnSettingsRequestedFromPopup;
         _searchPopupWindow = new SearchPopupWindow(searchViewModel);
 
         // Force the HWND and one full layout/render pass now, so the hotkey path never pays for it.
@@ -91,21 +91,25 @@ public partial class App : Application
         _settingsStore.Save(_settings);
     }
 
+    private void OnSettingsRequestedFromPopup()
+    {
+        _searchPopupWindow.Hide();
+        ShowSettingsWindow();
+    }
+
     private void ShowSettingsWindow()
     {
         if (_settingsWindow is null)
         {
             var modifiers = (HotkeyService.Modifiers)_settings.HotkeyModifiers;
             var key = (Key)_settings.HotkeyKey;
-            var dataFolderPath = Path.GetDirectoryName(_repository.FilePath) ?? string.Empty;
             var viewModel = new SettingsViewModel(
                 _startupService,
-                dataFolderPath,
                 modifiers,
                 key,
-                _settings.ShowPreviewPane,
+                _settings.VaultPath,
                 ApplyNewHotkey,
-                ApplyShowPreviewPane);
+                ApplyVaultPath);
             _settingsWindow = new SettingsWindow(viewModel);
         }
 
@@ -113,11 +117,11 @@ public partial class App : Application
         _settingsWindow.Activate();
     }
 
-    private void ApplyShowPreviewPane(bool value)
+    private void ApplyVaultPath(string vaultPath)
     {
-        _settings.ShowPreviewPane = value;
+        _settings.VaultPath = vaultPath;
         _settingsStore.Save(_settings);
-        _searchPopupWindow.ViewModel.ShowPreviewPane = value;
+        _vaultIndex.SetVaultPath(vaultPath);
     }
 
     protected override void OnExit(ExitEventArgs e)

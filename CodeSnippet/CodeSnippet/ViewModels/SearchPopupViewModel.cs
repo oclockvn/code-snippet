@@ -1,13 +1,10 @@
 using System.Collections.ObjectModel;
 using System.IO;
-using System.Windows;
 using System.Windows.Threading;
 using CodeSnippet.Models;
 using CodeSnippet.Services;
-using CodeSnippet.ViewModels;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Microsoft.Win32;
 
 namespace CodeSnippet.ViewModels;
 
@@ -16,12 +13,12 @@ public sealed partial class SearchPopupViewModel : ObservableObject
     // Keeps the popup's visual tree small and render cost low, per the <100ms show budget.
     private const int MaxVisibleResults = 30;
 
-    private readonly PromptRepository _repository;
+    private readonly VaultIndexService _vaultIndex;
     private readonly PasteService _pasteService;
-    private readonly List<PromptMatch> _searchBuffer = new();
+    private readonly List<VaultFileMatch> _searchBuffer = new();
     private readonly List<SearchResultRow> _selectable = new();
     private readonly DispatcherTimer _copiedTimer;
-    private Prompt? _pendingHide;
+    private VaultFile? _pendingHide;
 
     [ObservableProperty]
     private string _query = string.Empty;
@@ -36,36 +33,7 @@ public sealed partial class SearchPopupViewModel : ObservableObject
     private int _totalCount;
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(EditSelectedCommand))]
-    [NotifyCanExecuteChangedFor(nameof(DeleteSelectedCommand))]
-    private Prompt? _selectedPrompt;
-
-    [ObservableProperty]
-    private int _previewCharCount;
-
-    [ObservableProperty]
-    private bool _isEditing;
-
-    /// <summary>True while a MessageBox/file dialog owned by this window is up, so the deactivation-hide
-    /// behavior (click-away dismiss) doesn't yank the popup out from under a modal the user is answering.</summary>
-    [ObservableProperty]
-    private bool _isModalOpen;
-
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(SaveEditCommand))]
-    private string _editTitle = string.Empty;
-
-    [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(SaveEditCommand))]
-    private string _editBody = string.Empty;
-
-    [ObservableProperty]
-    private string _editTags = string.Empty;
-
-    [ObservableProperty]
-    private string _editStatusMessage = string.Empty;
-
-    private Prompt? _editingPrompt;
+    private VaultFile? _selectedFile;
 
     [ObservableProperty]
     private string _copiedTitle = string.Empty;
@@ -74,7 +42,7 @@ public sealed partial class SearchPopupViewModel : ObservableObject
     private string _countBadgeText = string.Empty;
 
     [ObservableProperty]
-    private bool _showPreviewPane = true;
+    private string _statusMessage = string.Empty;
 
     [ObservableProperty]
     private bool _isHeaderVisible = true;
@@ -85,21 +53,20 @@ public sealed partial class SearchPopupViewModel : ObservableObject
     [ObservableProperty]
     private bool _isQueryEmpty = true;
 
-    [ObservableProperty]
-    private bool _isPreviewVisible = true;
-
     public ObservableCollection<SearchResultRow> Rows { get; } = new();
 
     /// <summary>Fired once the 400ms "Copied" confirmation has held; the window should hide now.</summary>
-    public event Action<Prompt>? PromptChosen;
+    public event Action<VaultFile>? FileChosen;
 
     public event Action? Cancelled;
 
-    public SearchPopupViewModel(PromptRepository repository, PasteService pasteService, bool showPreviewPane)
+    /// <summary>Raised by the first-run screen's "Open Settings" button (or Enter, while in that state) — the app owns opening the Settings window.</summary>
+    public event Action? SettingsRequested;
+
+    public SearchPopupViewModel(VaultIndexService vaultIndex, PasteService pasteService)
     {
-        _repository = repository;
+        _vaultIndex = vaultIndex;
         _pasteService = pasteService;
-        _showPreviewPane = showPreviewPane;
 
         _copiedTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };
         _copiedTimer.Tick += OnCopiedTimerTick;
@@ -108,9 +75,11 @@ public sealed partial class SearchPopupViewModel : ObservableObject
     public void Reset()
     {
         _copiedTimer.Stop();
-        IsEditing = false;
-        _editingPrompt = null;
         Query = string.Empty;
+        StatusMessage = string.Empty;
+        // Vault files change externally (Obsidian, sync, the user) while the popup is closed, so
+        // pick up any changes now rather than trusting whatever was indexed at app startup.
+        _vaultIndex.Reindex();
         RefreshResults();
     }
 
@@ -124,16 +93,7 @@ public sealed partial class SearchPopupViewModel : ObservableObject
     {
         IsHeaderVisible = value is PopupState.Resting or PopupState.Typing or PopupState.NoMatch;
         IsResultsVisible = value is PopupState.Resting or PopupState.Typing;
-        RecomputePreviewVisibility();
     }
-
-    partial void OnShowPreviewPaneChanged(bool value) => RecomputePreviewVisibility();
-
-    // While editing, the preview/edit pane is the only surface for CRUD (there's no separate Manager
-    // window anymore) — it must stay visible even if the user turned the preview pane off in Settings.
-    partial void OnIsEditingChanged(bool value) => RecomputePreviewVisibility();
-
-    private void RecomputePreviewVisibility() => IsPreviewVisible = IsEditing || (IsResultsVisible && ShowPreviewPane);
 
     partial void OnSelectedIndexChanged(int value) => SyncSelectionHighlight(value);
 
@@ -148,8 +108,7 @@ public sealed partial class SearchPopupViewModel : ObservableObject
             _selectable[i].IsSelected = _selectable[i].SelectableIndex == value;
         }
 
-        SelectedPrompt = value >= 0 && value < _selectable.Count ? _selectable[value].Prompt : null;
-        PreviewCharCount = SelectedPrompt?.Body.Length ?? 0;
+        SelectedFile = value >= 0 && value < _selectable.Count ? _selectable[value].File : null;
     }
 
     private void RefreshResults()
@@ -157,7 +116,7 @@ public sealed partial class SearchPopupViewModel : ObservableObject
         Rows.Clear();
         _selectable.Clear();
 
-        TotalCount = _repository.Prompts.Count;
+        TotalCount = _vaultIndex.Files.Count;
 
         if (TotalCount == 0)
         {
@@ -171,19 +130,11 @@ public sealed partial class SearchPopupViewModel : ObservableObject
         {
             State = PopupState.Resting;
             BuildRestingRows();
-            CountBadgeText = $"{TotalCount} prompt{(TotalCount == 1 ? "" : "s")}";
+            CountBadgeText = $"{TotalCount} file{(TotalCount == 1 ? "" : "s")}";
         }
         else
         {
-            var trimmed = Query.TrimStart();
-            if (trimmed.StartsWith('#'))
-            {
-                _repository.SearchByTags(ParseTagTokens(trimmed), _searchBuffer);
-            }
-            else
-            {
-                _repository.Search(Query, _searchBuffer);
-            }
+            _vaultIndex.Search(Query, _searchBuffer);
 
             if (_searchBuffer.Count > MaxVisibleResults)
             {
@@ -200,7 +151,7 @@ public sealed partial class SearchPopupViewModel : ObservableObject
                 State = PopupState.Typing;
                 foreach (var match in _searchBuffer)
                 {
-                    AddItemRow(match.Prompt, match.TitleRanges);
+                    AddItemRow(match.File, match.NameRanges);
                 }
 
                 CountBadgeText = $"{_selectable.Count} of {TotalCount}";
@@ -212,76 +163,40 @@ public sealed partial class SearchPopupViewModel : ObservableObject
         SyncSelectionHighlight(newIndex);
     }
 
-    // No LINQ / no sort: with no query, prompts are shown as stored, capped to the visible budget.
+    // No LINQ / no sort here: VaultIndexService already keeps Files sorted by name, so resting rows
+    // are just the first page of it, capped to the visible budget.
     private void BuildRestingRows()
     {
-        var prompts = _repository.Prompts;
-        var count = Math.Min(prompts.Count, MaxVisibleResults);
+        var files = _vaultIndex.Files;
+        var count = Math.Min(files.Count, MaxVisibleResults);
         for (var i = 0; i < count; i++)
         {
-            AddItemRow(prompts[i], titleRanges: null);
+            AddItemRow(files[i], nameRanges: null);
         }
     }
 
-    /// <summary>
-    /// Splits a `#`-prefixed query into tag tokens, e.g. "#tag1 tag2" -> ["tag1", "tag2"]. The leading
-    /// "#" is stripped from every whitespace-separated token (not just the first), duplicates removed
-    /// case-insensitively. Tokens are matched OR-wise, not required together — see SearchByTags.
-    /// </summary>
-    private static List<string> ParseTagTokens(string trimmedQuery)
-    {
-        var tokens = new List<string>();
-        var parts = trimmedQuery.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
-
-        foreach (var part in parts)
-        {
-            var tag = part.TrimStart('#');
-            if (tag.Length == 0)
-            {
-                continue;
-            }
-
-            var exists = false;
-            for (var i = 0; i < tokens.Count; i++)
-            {
-                if (string.Equals(tokens[i], tag, StringComparison.OrdinalIgnoreCase))
-                {
-                    exists = true;
-                    break;
-                }
-            }
-
-            if (!exists)
-            {
-                tokens.Add(tag);
-            }
-        }
-
-        return tokens;
-    }
-
-    private void AddItemRow(Prompt prompt, IReadOnlyList<(int Start, int Length)>? titleRanges)
+    private void AddItemRow(VaultFile file, IReadOnlyList<(int Start, int Length)>? nameRanges)
     {
         var index = _selectable.Count;
 
         var row = new SearchResultRow
         {
-            Prompt = prompt,
+            File = file,
             SelectableIndex = index,
             DisplayNumber = index + 1,
-            TitleSegments = BuildTitleSegments(prompt.Title, titleRanges),
-            BodyPreview = ToSingleLine(prompt.Body),
+            TitleSegments = BuildTitleSegments(file.Name, nameRanges),
+            FolderPath = Path.GetDirectoryName(file.RelativePath) ?? string.Empty,
         };
 
         Rows.Add(row);
         _selectable.Add(row);
     }
 
-    private static List<TitleSegment> BuildTitleSegments(string title, IReadOnlyList<(int Start, int Length)>? ranges)
+    private static List<TitleSegment> BuildTitleSegments(string name, IReadOnlyList<(int Start, int Length)>? ranges)
     {
         if (ranges is null || ranges.Count == 0)
         {
-            return new List<TitleSegment> { new(title, IsMatch: false) };
+            return new List<TitleSegment> { new(name, IsMatch: false) };
         }
 
         var segments = new List<TitleSegment>(ranges.Count * 2 + 1);
@@ -291,35 +206,20 @@ public sealed partial class SearchPopupViewModel : ObservableObject
         {
             if (start > pos)
             {
-                segments.Add(new TitleSegment(title[pos..start], IsMatch: false));
+                segments.Add(new TitleSegment(name[pos..start], IsMatch: false));
             }
 
-            segments.Add(new TitleSegment(title.Substring(start, length), IsMatch: true));
+            segments.Add(new TitleSegment(name.Substring(start, length), IsMatch: true));
             pos = start + length;
         }
 
-        if (pos < title.Length)
+        if (pos < name.Length)
         {
-            segments.Add(new TitleSegment(title[pos..], IsMatch: false));
+            segments.Add(new TitleSegment(name[pos..], IsMatch: false));
         }
 
         return segments;
     }
-
-    private static string ToSingleLine(string body)
-    {
-        var start = 0;
-        while (start < body.Length && char.IsWhiteSpace(body[start]))
-        {
-            start++;
-        }
-
-        var newline = body.IndexOfAny(NewlineChars, start);
-        var firstLine = newline < 0 ? body[start..] : body[start..newline];
-        return firstLine.Trim();
-    }
-
-    private static readonly char[] NewlineChars = { '\r', '\n' };
 
     [RelayCommand]
     private void MoveSelectionDown()
@@ -343,16 +243,15 @@ public sealed partial class SearchPopupViewModel : ObservableObject
         SelectedIndex = Math.Max(SelectedIndex - 1, 0);
     }
 
-    /// <summary>Alt+1..Alt+9 jump-select, per the popup's "Alt + N Jump" hint. 1-based, no-op out of range.</summary>
     [RelayCommand]
     private void Confirm()
     {
         switch (State)
         {
-            case PopupState.NoMatch:
             case PopupState.FirstRun:
-                StartNewPromptWithTitle(Query.Trim());
+                OpenSettings();
                 break;
+            case PopupState.NoMatch:
             case PopupState.Copied:
                 break;
             default:
@@ -379,13 +278,32 @@ public sealed partial class SearchPopupViewModel : ObservableObject
             return;
         }
 
-        var prompt = _selectable[SelectedIndex].Prompt;
-        _ = _pasteService.CopyToClipboardAsync(prompt.Body);
+        _ = CopySelectedFileAsync(_selectable[SelectedIndex].File);
+    }
 
-        CopiedTitle = prompt.Title;
+    private async Task CopySelectedFileAsync(VaultFile file)
+    {
+        string content;
+        try
+        {
+            content = await File.ReadAllTextAsync(file.FullPath);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            // The file may have moved, been renamed, or been deleted since the index was built
+            // (the vault is edited externally, e.g. by Obsidian, while this popup isn't watching).
+            StatusMessage = $"Couldn't read \"{file.Name}\" — it may have moved or been deleted.";
+            _vaultIndex.Reindex();
+            RefreshResults();
+            return;
+        }
+
+        await _pasteService.CopyToClipboardAsync(content);
+
+        CopiedTitle = file.Name;
         State = PopupState.Copied;
 
-        _pendingHide = prompt;
+        _pendingHide = file;
         _copiedTimer.Stop();
         _copiedTimer.Start();
     }
@@ -393,204 +311,15 @@ public sealed partial class SearchPopupViewModel : ObservableObject
     private void OnCopiedTimerTick(object? sender, EventArgs e)
     {
         _copiedTimer.Stop();
-        if (_pendingHide is { } prompt)
+        if (_pendingHide is { } file)
         {
             _pendingHide = null;
-            PromptChosen?.Invoke(prompt);
-        }
-    }
-
-    /// <summary>'I' (or the "Import JSON" button) on the first-run screen — jump straight into Import.</summary>
-    [RelayCommand]
-    private void RequestImport() => ImportPromptsCommand.Execute(null);
-
-    /// <summary>Enter with no match, or on the first-run screen — start a new prompt inline with this title prefilled.</summary>
-    public void StartNewPromptWithTitle(string title)
-    {
-        State = PopupState.Resting;
-        BeginEdit(null);
-        EditTitle = title;
-    }
-
-    private bool CanEditSelected() => SelectedPrompt is not null;
-
-    [RelayCommand(CanExecute = nameof(CanEditSelected))]
-    private void EditSelected()
-    {
-        if (SelectedPrompt is null)
-        {
-            return;
-        }
-
-        BeginEdit(SelectedPrompt);
-    }
-
-    [RelayCommand]
-    private void NewPrompt() => BeginEdit(null);
-
-    private void BeginEdit(Prompt? prompt)
-    {
-        _editingPrompt = prompt;
-        EditTitle = prompt?.Title ?? string.Empty;
-        EditBody = prompt?.Body ?? string.Empty;
-        EditTags = prompt?.Tags is { Length: > 0 } tags ? string.Join(", ", tags) : string.Empty;
-        EditStatusMessage = string.Empty;
-        IsEditing = true;
-    }
-
-    private bool CanSaveEdit() => !string.IsNullOrWhiteSpace(EditTitle) && !string.IsNullOrWhiteSpace(EditBody);
-
-    [RelayCommand(CanExecute = nameof(CanSaveEdit))]
-    private void SaveEdit()
-    {
-        var tags = EditTags.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-        Guid savedId;
-
-        if (_editingPrompt is null)
-        {
-            var prompt = new Prompt
-            {
-                Title = EditTitle.Trim(),
-                Body = EditBody,
-                Tags = tags.Length > 0 ? tags : null,
-            };
-
-            _repository.Add(prompt);
-            savedId = prompt.Id;
-        }
-        else
-        {
-            _editingPrompt.Title = EditTitle.Trim();
-            _editingPrompt.Body = EditBody;
-            _editingPrompt.Tags = tags.Length > 0 ? tags : null;
-            _repository.Update(_editingPrompt);
-            savedId = _editingPrompt.Id;
-        }
-
-        IsEditing = false;
-        _editingPrompt = null;
-        RefreshResults();
-        SelectById(savedId);
-    }
-
-    [RelayCommand]
-    private void CancelEdit()
-    {
-        IsEditing = false;
-        _editingPrompt = null;
-    }
-
-    private bool CanDeleteSelected() => SelectedPrompt is not null;
-
-    [RelayCommand(CanExecute = nameof(CanDeleteSelected))]
-    private void DeleteSelected()
-    {
-        if (SelectedPrompt is null)
-        {
-            return;
-        }
-
-        bool confirmed;
-        IsModalOpen = true;
-        try
-        {
-            confirmed = MessageBox.Show(
-                $"Delete \"{SelectedPrompt.Title}\"? This can't be undone.",
-                "Prompt Manager",
-                MessageBoxButton.YesNo,
-                MessageBoxImage.Warning) == MessageBoxResult.Yes;
-        }
-        finally
-        {
-            IsModalOpen = false;
-        }
-
-        if (!confirmed)
-        {
-            return;
-        }
-
-        _repository.Delete(SelectedPrompt.Id);
-        IsEditing = false;
-        _editingPrompt = null;
-        RefreshResults();
-    }
-
-    [RelayCommand]
-    private void ImportPrompts()
-    {
-        var dialog = new OpenFileDialog { Filter = "JSON files (*.json)|*.json" };
-        bool? picked;
-        IsModalOpen = true;
-        try
-        {
-            picked = dialog.ShowDialog();
-        }
-        finally
-        {
-            IsModalOpen = false;
-        }
-
-        if (picked != true)
-        {
-            return;
-        }
-
-        try
-        {
-            var json = File.ReadAllText(dialog.FileName);
-            var imported = PromptRepository.ParseImport(json);
-            if (imported is not { Count: > 0 })
-            {
-                EditStatusMessage = "No prompts found in file.";
-                return;
-            }
-
-            var count = _repository.Import(imported);
-            RefreshResults();
-            EditStatusMessage = $"Imported {count} prompts.";
-        }
-        catch (Exception ex)
-        {
-            EditStatusMessage = $"Import failed: {ex.Message}";
+            FileChosen?.Invoke(file);
         }
     }
 
     [RelayCommand]
-    private void ExportPrompts()
-    {
-        var dialog = new SaveFileDialog
-        {
-            Filter = "JSON files (*.json)|*.json",
-            FileName = $"prompts-export-{DateTime.Now:yyyyMMdd-HHmmss}.json",
-        };
-
-        bool? picked;
-        IsModalOpen = true;
-        try
-        {
-            picked = dialog.ShowDialog();
-        }
-        finally
-        {
-            IsModalOpen = false;
-        }
-
-        if (picked != true)
-        {
-            return;
-        }
-
-        File.WriteAllText(dialog.FileName, _repository.ExportToJson());
-        EditStatusMessage = $"Exported {_repository.Prompts.Count} prompts.";
-    }
-
-    private void SelectById(Guid id)
-    {
-        var index = _selectable.FindIndex(r => r.Prompt.Id == id);
-        SelectedIndex = index >= 0 ? index : (_selectable.Count > 0 ? 0 : -1);
-        SyncSelectionHighlight(SelectedIndex);
-    }
+    private void OpenSettings() => SettingsRequested?.Invoke();
 
     [RelayCommand]
     private void Cancel()

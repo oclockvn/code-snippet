@@ -1,7 +1,6 @@
 using System.IO;
 using System.Text.Json;
 using CodeSnippet.Models;
-using CodeSnippet.Models;
 
 namespace CodeSnippet.Services;
 
@@ -26,7 +25,7 @@ public sealed class AppSettingsStore
             if (File.Exists(_filePath))
             {
                 var json = File.ReadAllText(_filePath);
-                var settings = JsonSerializer.Deserialize(json, PromptJsonContext.Default.AppSettings);
+                var settings = JsonSerializer.Deserialize(json, AppSettingsJsonContext.Default.AppSettings);
                 if (settings is not null)
                 {
                     return settings;
@@ -51,7 +50,7 @@ public sealed class AppSettingsStore
                 Directory.CreateDirectory(directory);
             }
 
-            var json = JsonSerializer.Serialize(settings, PromptJsonContext.Default.AppSettings);
+            var json = JsonSerializer.Serialize(settings, AppSettingsJsonContext.Default.AppSettings);
             File.WriteAllText(_filePath, json);
         }
         catch (Exception)
