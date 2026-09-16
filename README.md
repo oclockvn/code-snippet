@@ -48,6 +48,16 @@ dotnet run --project CodeSnippet\CodeSnippet\CodeSnippet.csproj
 The app has no visible main window on launch — it registers the global hotkey and puts an icon in
 the system tray. Right-click the tray icon for **Search prompts**, **Settings...**, and **Exit**.
 
+## Release
+
+Push a `v*` tag to trigger [Build](.github/workflows/build.yml), which builds, publishes, zips,
+and creates a GitHub Release with the zip attached:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
 ## Usage
 
 - Press the global hotkey to open the popup. Type to filter, <kbd>&uarr;</kbd>/<kbd>&darr;</kbd>
