@@ -175,7 +175,16 @@ public sealed partial class SearchPopupViewModel : ObservableObject
         }
         else
         {
-            _repository.Search(Query, _searchBuffer);
+            var trimmed = Query.TrimStart();
+            if (trimmed.StartsWith('#'))
+            {
+                _repository.SearchByTags(ParseTagTokens(trimmed), _searchBuffer);
+            }
+            else
+            {
+                _repository.Search(Query, _searchBuffer);
+            }
+
             if (_searchBuffer.Count > MaxVisibleResults)
             {
                 _searchBuffer.RemoveRange(MaxVisibleResults, _searchBuffer.Count - MaxVisibleResults);
@@ -212,6 +221,43 @@ public sealed partial class SearchPopupViewModel : ObservableObject
         {
             AddItemRow(prompts[i], titleRanges: null);
         }
+    }
+
+    /// <summary>
+    /// Splits a `#`-prefixed query into tag tokens, e.g. "#tag1 tag2" -> ["tag1", "tag2"]. The leading
+    /// "#" is stripped from every whitespace-separated token (not just the first), duplicates removed
+    /// case-insensitively. Tokens are matched OR-wise, not required together — see SearchByTags.
+    /// </summary>
+    private static List<string> ParseTagTokens(string trimmedQuery)
+    {
+        var tokens = new List<string>();
+        var parts = trimmedQuery.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+
+        foreach (var part in parts)
+        {
+            var tag = part.TrimStart('#');
+            if (tag.Length == 0)
+            {
+                continue;
+            }
+
+            var exists = false;
+            for (var i = 0; i < tokens.Count; i++)
+            {
+                if (string.Equals(tokens[i], tag, StringComparison.OrdinalIgnoreCase))
+                {
+                    exists = true;
+                    break;
+                }
+            }
+
+            if (!exists)
+            {
+                tokens.Add(tag);
+            }
+        }
+
+        return tokens;
     }
 
     private void AddItemRow(Prompt prompt, IReadOnlyList<(int Start, int Length)>? titleRanges)

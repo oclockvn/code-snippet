@@ -20,6 +20,7 @@ public sealed class PromptRepository
     private readonly List<Prompt> _prompts = new();
     private readonly List<(Prompt Prompt, int Score, (int Start, int Length)[] Ranges)> _titleMatchBuffer = new();
     private readonly List<Prompt> _bodyMatchBuffer = new();
+    private readonly List<(Prompt Prompt, int Score)> _tagMatchBuffer = new();
     private readonly List<(int Start, int Length)> _rangeScratch = new();
     private readonly FuzzyMatcher.Scratch _matchScratch = new();
 
@@ -162,6 +163,72 @@ public sealed class PromptRepository
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// Fills <paramref name="results"/> (cleared first) with prompts having at least one tag that
+    /// fuzzy-matches any of <paramref name="tagTokens"/> (same VS Code Quick Open-style matcher used
+    /// for titles, so "re" matches both "review" and "refactor"), OR'd across tags and tokens. Ranked
+    /// by each prompt's best tag-match score, highest first. Used for `#tag` queries, where tag
+    /// filtering replaces title/body search entirely. Empty tokens means no filter yet (e.g. a bare
+    /// "#"), so every prompt is returned unranked.
+    /// </summary>
+    public void SearchByTags(IReadOnlyList<string> tagTokens, List<PromptMatch> results)
+    {
+        results.Clear();
+
+        if (tagTokens.Count == 0)
+        {
+            for (var i = 0; i < _prompts.Count; i++)
+            {
+                results.Add(new PromptMatch(_prompts[i], null));
+            }
+
+            return;
+        }
+
+        _tagMatchBuffer.Clear();
+
+        for (var i = 0; i < _prompts.Count; i++)
+        {
+            var prompt = _prompts[i];
+            if (TryBestTagScore(prompt.Tags, tagTokens, out var score))
+            {
+                _tagMatchBuffer.Add((prompt, score));
+            }
+        }
+
+        _tagMatchBuffer.Sort(static (a, b) => b.Score.CompareTo(a.Score));
+
+        for (var i = 0; i < _tagMatchBuffer.Count; i++)
+        {
+            results.Add(new PromptMatch(_tagMatchBuffer[i].Prompt, null));
+        }
+    }
+
+    private bool TryBestTagScore(string[]? tags, IReadOnlyList<string> tagTokens, out int bestScore)
+    {
+        bestScore = int.MinValue;
+        var found = false;
+
+        if (tags is null)
+        {
+            return false;
+        }
+
+        for (var i = 0; i < tags.Length; i++)
+        {
+            for (var j = 0; j < tagTokens.Count; j++)
+            {
+                if (FuzzyMatcher.TryMatch(tags[i], tagTokens[j], out var score, _rangeScratch, _matchScratch) && score > bestScore)
+                {
+                    found = true;
+                    bestScore = score;
+                }
+            }
+        }
+
+        return found;
     }
 
     /// <summary>Upserts by Id. Returns the number of prompts processed.</summary>
