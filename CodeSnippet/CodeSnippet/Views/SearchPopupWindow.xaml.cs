@@ -2,7 +2,6 @@ using System.ComponentModel;
 using System.Linq;
 using System.Windows;
 using System.Windows.Input;
-using CodeSnippet.Models;
 using CodeSnippet.ViewModels;
 
 namespace CodeSnippet.Views;
@@ -20,7 +19,6 @@ public partial class SearchPopupWindow : Window
         _viewModel = viewModel;
         DataContext = _viewModel;
 
-        _viewModel.FileChosen += OnFileChosen;
         _viewModel.Cancelled += HideBack;
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
     }
@@ -68,8 +66,6 @@ public partial class SearchPopupWindow : Window
 
     private void HideBack() => Visibility = Visibility.Hidden;
 
-    private void OnFileChosen(VaultFile file) => HideBack();
-
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
     {
         switch (e.Key)
@@ -90,6 +86,10 @@ public partial class SearchPopupWindow : Window
                 break;
             case Key.Enter when Keyboard.Modifiers == ModifierKeys.Control:
                 _viewModel.CopySelectedCommand.Execute(null);
+                e.Handled = true;
+                break;
+            case Key.Enter when Keyboard.Modifiers == ModifierKeys.Shift:
+                _viewModel.CopyFilePathCommand.Execute(null);
                 e.Handled = true;
                 break;
             case Key.Enter:

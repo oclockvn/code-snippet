@@ -6,5 +6,4 @@ public enum PopupState
     Typing,
     NoMatch,
     FirstRun,
-    Copied,
 }
