@@ -8,6 +8,18 @@ lives in the tray.
 
 Default hotkey: **Alt+Shift+J** (rebindable from Settings).
 
+![Vault search popup](screenshots/screen-v2.png)
+
+## v1 vs v2
+
+**v2 (this branch/release)** rebuilt the app around Obsidian vault search: fuzzy filename search
+over a folder of markdown files, copy-to-clipboard on Enter, nothing persisted by the app itself.
+
+**v1** was the original single-JSON-file prompt library (add/edit/tag/search prompts stored in one
+local JSON file) — no vault, no external files. If you just want a small, self-contained prompt
+list rather than vault search, grab the
+[v1.0.0 release](https://github.com/oclockvn/code-snippet/releases/tag/v1.0.0) instead.
+
 ## Features
 
 - **Global hotkey** opens a borderless popup on top of whatever you're doing; <kbd>Esc</kbd>
@@ -44,8 +56,8 @@ Push a `v*` tag to trigger [Build](.github/workflows/build.yml), which builds, p
 and creates a GitHub Release with the zip attached:
 
 ```bash
-git tag v1.0.0
-git push origin v1.0.0
+git tag v2.0.0
+git push origin v2.0.0
 ```
 
 ## Usage
@@ -71,6 +83,6 @@ on disk I/O.
 
 - Built with WPF + `CommunityToolkit.Mvvm` (source-generated bindings/commands, no reflection) and
   `H.NotifyIcon.Wpf` for the tray icon.
-- The `screenshots/` folder and this doc's old screenshot embeds show the previous prompt-library
-  UI (inline edit form, tag pills, preview pane); they're pending a retake for the vault-search
-  popup.
+- `screenshots/screen-v2.png` is the current (v2) vault-search popup. `screen-1.png`–`screen-4.png`
+  are the old v1 prompt-library UI (inline edit form, tag pills, preview pane) — kept for reference,
+  not representative of this version.
