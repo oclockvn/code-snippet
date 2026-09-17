@@ -170,32 +170,6 @@
                 </StackPanel>
             </StackPanel>
 
-            <!-- copied confirmation -->
-            <Grid Grid.Row="2" MinWidth="672"
-                  Visibility="{Binding State, Converter={StaticResource EnumEqualsVisibilityConverter}, ConverterParameter=Copied}">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="3"/>
-                </Grid.RowDefinitions>
-                <Grid Grid.Row="0" Margin="24,30">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <Rectangle Grid.Column="0" Width="10" Height="52" Fill="{StaticResource ColorAccent}" Margin="0,0,20,0"/>
-                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                        <TextBlock Text="COPIED TO CLIPBOARD" FontSize="11" FontWeight="Bold" Foreground="{StaticResource Accent400}" Margin="0,0,0,6"/>
-                        <TextBlock Text="{Binding CopiedTitle}" FontSize="24" FontWeight="Bold" Foreground="{StaticResource Neutral100}"/>
-                    </StackPanel>
-                    <StackPanel Grid.Column="2" HorizontalAlignment="Right" VerticalAlignment="Center">
-                        <TextBlock Text="NOW PRESS" FontSize="11" FontWeight="Bold" Foreground="{StaticResource Neutral500}" HorizontalAlignment="Right"/>
-                        <TextBlock Text="Ctrl + V" FontSize="20" FontWeight="ExtraBold" Foreground="{StaticResource Neutral100}" Margin="0,2,0,0"/>
-                    </StackPanel>
-                </Grid>
-                <Rectangle Grid.Row="1" Fill="{StaticResource ColorAccent}"/>
-            </Grid>
-
             <!-- inline preview: opened with Enter, follows whatever row is currently highlighted -->
             <Border Grid.Row="3" BorderBrush="{StaticResource DarkDividerFaint}" BorderThickness="0,1,0,0"
                     Visibility="{Binding IsPreviewOpen, Converter={StaticResource BoolToVisibilityConverter}}">
@@ -237,6 +211,7 @@
                     <TextBlock Text="⏎  Preview" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource Neutral500}" Margin="0,0,16,0"
                                Visibility="{Binding IsPreviewOpen, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}"/>
                     <TextBlock Text="Ctrl + ⏎  Copy" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource Neutral500}" Margin="0,0,16,0"/>
+                    <TextBlock Text="Shift + ⏎  Copy path" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource Neutral500}" Margin="0,0,16,0"/>
                     <TextBlock Text="Esc  Close" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource Neutral500}" Margin="0,0,16,0"
                                Visibility="{Binding IsPreviewOpen, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}"/>
                     <TextBlock Text="Esc  Back" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource Neutral500}" Margin="0,0,16,0"
@@ -269,6 +244,46 @@
                     </Canvas>
                 </Viewbox>
             </Button>
+
+            <!-- toast: brief "copied" confirmation that slides down from the top edge over whatever is showing, then slides back out. Window stays open throughout. -->
+            <Border Grid.Row="0" Grid.RowSpan="5" VerticalAlignment="Top" HorizontalAlignment="Center"
+                    Margin="0,6,0,0" Padding="16,9" CornerRadius="6" Background="#2E7D32"
+                    IsHitTestVisible="False" Panel.ZIndex="10">
+                <Border.RenderTransform>
+                    <TranslateTransform Y="-60"/>
+                </Border.RenderTransform>
+                <Border.Style>
+                    <Style TargetType="Border">
+                        <Style.Triggers>
+                            <DataTrigger Binding="{Binding IsToastVisible}" Value="True">
+                                <DataTrigger.EnterActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetProperty="RenderTransform.Y" To="6" Duration="0:0:0.25">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseOut"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </DataTrigger.EnterActions>
+                                <DataTrigger.ExitActions>
+                                    <BeginStoryboard>
+                                        <Storyboard>
+                                            <DoubleAnimation Storyboard.TargetProperty="RenderTransform.Y" To="-60" Duration="0:0:0.2">
+                                                <DoubleAnimation.EasingFunction>
+                                                    <CubicEase EasingMode="EaseIn"/>
+                                                </DoubleAnimation.EasingFunction>
+                                            </DoubleAnimation>
+                                        </Storyboard>
+                                    </BeginStoryboard>
+                                </DataTrigger.ExitActions>
+                            </DataTrigger>
+                        </Style.Triggers>
+                    </Style>
+                </Border.Style>
+                <TextBlock Text="{Binding ToastMessage}" FontSize="12.5" FontWeight="SemiBold" Foreground="{StaticResource Neutral100}"/>
+            </Border>
 
         </Grid>
     </Border>

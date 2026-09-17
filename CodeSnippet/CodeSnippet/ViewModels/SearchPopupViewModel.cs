@@ -17,8 +17,7 @@ public sealed partial class SearchPopupViewModel : ObservableObject
     private readonly PasteService _pasteService;
     private readonly List<VaultFileMatch> _searchBuffer = new();
     private readonly List<SearchResultRow> _selectable = new();
-    private readonly DispatcherTimer _copiedTimer;
-    private VaultFile? _pendingHide;
+    private readonly DispatcherTimer _toastTimer;
     private int _previewRequestId;
 
     [ObservableProperty]
@@ -37,7 +36,10 @@ public sealed partial class SearchPopupViewModel : ObservableObject
     private VaultFile? _selectedFile;
 
     [ObservableProperty]
-    private string _copiedTitle = string.Empty;
+    private bool _isToastVisible;
+
+    [ObservableProperty]
+    private string _toastMessage = string.Empty;
 
     [ObservableProperty]
     private string _countBadgeText = string.Empty;
@@ -62,9 +64,6 @@ public sealed partial class SearchPopupViewModel : ObservableObject
 
     public ObservableCollection<SearchResultRow> Rows { get; } = new();
 
-    /// <summary>Fired once the 400ms "Copied" confirmation has held; the window should hide now.</summary>
-    public event Action<VaultFile>? FileChosen;
-
     public event Action? Cancelled;
 
     /// <summary>Raised by the first-run screen's "Open Settings" button (or Enter, while in that state) — the app owns opening the Settings window.</summary>
@@ -75,13 +74,14 @@ public sealed partial class SearchPopupViewModel : ObservableObject
         _vaultIndex = vaultIndex;
         _pasteService = pasteService;
 
-        _copiedTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };
-        _copiedTimer.Tick += OnCopiedTimerTick;
+        _toastTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(1600) };
+        _toastTimer.Tick += OnToastTimerTick;
     }
 
     public void Reset()
     {
-        _copiedTimer.Stop();
+        _toastTimer.Stop();
+        IsToastVisible = false;
         Query = string.Empty;
         StatusMessage = string.Empty;
         IsPreviewOpen = false;
@@ -276,7 +276,6 @@ public sealed partial class SearchPopupViewModel : ObservableObject
                 OpenSettings();
                 break;
             case PopupState.NoMatch:
-            case PopupState.Copied:
                 break;
             default:
                 SetPreviewOpen(true);
@@ -372,22 +371,43 @@ public sealed partial class SearchPopupViewModel : ObservableObject
         content = VaultContentExtractor.ExtractContent(content);
         await _pasteService.CopyToClipboardAsync(content);
 
-        CopiedTitle = file.Name;
-        State = PopupState.Copied;
-
-        _pendingHide = file;
-        _copiedTimer.Stop();
-        _copiedTimer.Start();
+        ShowToast($"Copied \"{file.Name}\"");
     }
 
-    private void OnCopiedTimerTick(object? sender, EventArgs e)
+    /// <summary>Shift+Enter: copy the current selection's absolute file path to the clipboard.</summary>
+    [RelayCommand]
+    private void CopyFilePath()
     {
-        _copiedTimer.Stop();
-        if (_pendingHide is { } file)
+        if (SelectedIndex < 0 || SelectedIndex >= _selectable.Count)
         {
-            _pendingHide = null;
-            FileChosen?.Invoke(file);
+            return;
         }
+
+        var file = _selectable[SelectedIndex].File;
+        _ = CopyFilePathAsync(file);
+    }
+
+    private async Task CopyFilePathAsync(VaultFile file)
+    {
+        await _pasteService.CopyToClipboardAsync(file.FullPath);
+
+        ShowToast($"Path copied: \"{file.Name}\"");
+    }
+
+    /// <summary>Slides the top toast in and (re)starts the timer that slides it back out.</summary>
+    private void ShowToast(string message)
+    {
+        ToastMessage = message;
+        IsToastVisible = true;
+
+        _toastTimer.Stop();
+        _toastTimer.Start();
+    }
+
+    private void OnToastTimerTick(object? sender, EventArgs e)
+    {
+        _toastTimer.Stop();
+        IsToastVisible = false;
     }
 
     [RelayCommand]
@@ -396,7 +416,8 @@ public sealed partial class SearchPopupViewModel : ObservableObject
     [RelayCommand]
     private void Cancel()
     {
-        _copiedTimer.Stop();
+        _toastTimer.Stop();
+        IsToastVisible = false;
         Cancelled?.Invoke();
     }
 }
