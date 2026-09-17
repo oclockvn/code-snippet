@@ -10,4 +10,7 @@ public sealed class VaultFile
 
     /// <summary>File name without extension — the only thing search matches against.</summary>
     public required string Name { get; init; }
+
+    /// <summary>Last-write time, used to rank the resting (no-query) view most-recent-first.</summary>
+    public required DateTime LastModifiedUtc { get; init; }
 }

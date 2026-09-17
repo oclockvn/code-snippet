@@ -186,13 +186,13 @@ public sealed partial class SearchPopupViewModel : ObservableObject
         SyncSelectionHighlight(newIndex);
     }
 
-    // No LINQ / no sort here: VaultIndexService already keeps Files sorted by name, so resting rows
-    // are just the first page of it, capped to the visible budget.
+    // No LINQ / no sort here: VaultIndexService already keeps Files sorted most-recently-modified
+    // first. Uncapped (unlike the typed-search path) since this only rebuilds once per popup open,
+    // not per keystroke, and the ItemsControl is virtualized so offscreen rows cost nothing to render.
     private void BuildRestingRows()
     {
         var files = _vaultIndex.Files;
-        var count = Math.Min(files.Count, MaxVisibleResults);
-        for (var i = 0; i < count; i++)
+        for (var i = 0; i < files.Count; i++)
         {
             AddItemRow(files[i], nameRanges: null);
         }
@@ -369,6 +369,7 @@ public sealed partial class SearchPopupViewModel : ObservableObject
             return;
         }
 
+        content = VaultContentExtractor.ExtractContent(content);
         await _pasteService.CopyToClipboardAsync(content);
 
         CopiedTitle = file.Name;

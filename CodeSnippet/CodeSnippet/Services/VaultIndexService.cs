@@ -43,7 +43,10 @@ public sealed class VaultIndexService
         }
 
         EnumerateDirectory(VaultPath);
-        _files.Sort(static (a, b) => string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase));
+        // Resting view (no query) shows the most-recently-touched files first. FileInfo's
+        // LastWriteTime comes from the same Win32 FindFirstFile/FindNextFile buffer the directory
+        // walk below already reads, so capturing it costs no extra I/O.
+        _files.Sort(static (a, b) => b.LastModifiedUtc.CompareTo(a.LastModifiedUtc));
     }
 
     // Manual recursion (rather than Directory.EnumerateFiles(..., RecurseSubdirectories: true)) so
@@ -52,11 +55,11 @@ public sealed class VaultIndexService
     private void EnumerateDirectory(string directory)
     {
         string[] subdirectories;
-        string[] files;
+        FileInfo[] files;
         try
         {
             subdirectories = Directory.GetDirectories(directory);
-            files = Directory.GetFiles(directory, "*.md");
+            files = new DirectoryInfo(directory).GetFiles("*.md");
         }
         catch (UnauthorizedAccessException)
         {
@@ -71,9 +74,10 @@ public sealed class VaultIndexService
         {
             _files.Add(new VaultFile
             {
-                FullPath = file,
-                RelativePath = Path.GetRelativePath(VaultPath, file),
-                Name = Path.GetFileNameWithoutExtension(file),
+                FullPath = file.FullName,
+                RelativePath = Path.GetRelativePath(VaultPath, file.FullName),
+                Name = Path.GetFileNameWithoutExtension(file.Name),
+                LastModifiedUtc = file.LastWriteTimeUtc,
             });
         }
 
