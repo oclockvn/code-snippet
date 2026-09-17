@@ -75,7 +75,21 @@ public partial class SearchPopupWindow : Window
         switch (e.Key)
         {
             case Key.Escape:
-                _viewModel.CancelCommand.Execute(null);
+                // Progressive: first Esc collapses an open preview back to the plain result list;
+                // only a second Esc (preview already closed) dismisses the whole popup.
+                if (_viewModel.IsPreviewOpen)
+                {
+                    _viewModel.ClosePreviewCommand.Execute(null);
+                }
+                else
+                {
+                    _viewModel.CancelCommand.Execute(null);
+                }
+
+                e.Handled = true;
+                break;
+            case Key.Enter when Keyboard.Modifiers == ModifierKeys.Control:
+                _viewModel.CopySelectedCommand.Execute(null);
                 e.Handled = true;
                 break;
             case Key.Enter:

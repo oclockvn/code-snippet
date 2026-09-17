@@ -19,6 +19,7 @@ public sealed partial class SearchPopupViewModel : ObservableObject
     private readonly List<SearchResultRow> _selectable = new();
     private readonly DispatcherTimer _copiedTimer;
     private VaultFile? _pendingHide;
+    private int _previewRequestId;
 
     [ObservableProperty]
     private string _query = string.Empty;
@@ -43,6 +44,12 @@ public sealed partial class SearchPopupViewModel : ObservableObject
 
     [ObservableProperty]
     private string _statusMessage = string.Empty;
+
+    [ObservableProperty]
+    private bool _isPreviewOpen;
+
+    [ObservableProperty]
+    private string _previewContent = string.Empty;
 
     [ObservableProperty]
     private bool _isHeaderVisible = true;
@@ -77,6 +84,8 @@ public sealed partial class SearchPopupViewModel : ObservableObject
         _copiedTimer.Stop();
         Query = string.Empty;
         StatusMessage = string.Empty;
+        IsPreviewOpen = false;
+        PreviewContent = string.Empty;
         // Vault files change externally (Obsidian, sync, the user) while the popup is closed, so
         // pick up any changes now rather than trusting whatever was indexed at app startup.
         _vaultIndex.Reindex();
@@ -93,6 +102,13 @@ public sealed partial class SearchPopupViewModel : ObservableObject
     {
         IsHeaderVisible = value is PopupState.Resting or PopupState.Typing or PopupState.NoMatch;
         IsResultsVisible = value is PopupState.Resting or PopupState.Typing;
+
+        // Nothing sensible to preview once there's no valid selection underneath it (no results,
+        // no vault configured) or the popup is already showing the copied-confirmation screen.
+        if (!IsResultsVisible)
+        {
+            SetPreviewOpen(false);
+        }
     }
 
     partial void OnSelectedIndexChanged(int value) => SyncSelectionHighlight(value);
@@ -109,6 +125,13 @@ public sealed partial class SearchPopupViewModel : ObservableObject
         }
 
         SelectedFile = value >= 0 && value < _selectable.Count ? _selectable[value].File : null;
+
+        // While the preview is open it tracks whatever row is highlighted — via arrow keys, a
+        // click, or a new search result taking the top slot — not just the file it was opened for.
+        if (IsPreviewOpen)
+        {
+            _ = LoadPreviewAsync(SelectedFile);
+        }
     }
 
     private void RefreshResults()
@@ -243,6 +266,7 @@ public sealed partial class SearchPopupViewModel : ObservableObject
         SelectedIndex = Math.Max(SelectedIndex - 1, 0);
     }
 
+    /// <summary>Enter: open the inline preview for the current selection (first-run screen: jump to Settings instead).</summary>
     [RelayCommand]
     private void Confirm()
     {
@@ -255,8 +279,53 @@ public sealed partial class SearchPopupViewModel : ObservableObject
             case PopupState.Copied:
                 break;
             default:
-                ChooseSelected();
+                SetPreviewOpen(true);
                 break;
+        }
+    }
+
+    /// <summary>Escape: collapse an open preview first; only closes the popup once the preview is already closed.</summary>
+    [RelayCommand]
+    private void ClosePreview() => SetPreviewOpen(false);
+
+    private void SetPreviewOpen(bool open)
+    {
+        IsPreviewOpen = open;
+        if (open)
+        {
+            _ = LoadPreviewAsync(SelectedFile);
+        }
+        else
+        {
+            PreviewContent = string.Empty;
+        }
+    }
+
+    private async Task LoadPreviewAsync(VaultFile? file)
+    {
+        var requestId = ++_previewRequestId;
+
+        if (file is null)
+        {
+            PreviewContent = string.Empty;
+            return;
+        }
+
+        string content;
+        try
+        {
+            content = await File.ReadAllTextAsync(file.FullPath);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            content = $"Couldn't read \"{file.Name}\" — it may have moved or been deleted.";
+        }
+
+        // A later keystroke/arrow press may have moved the selection while this read was in
+        // flight; only the most recently requested file gets to write PreviewContent.
+        if (requestId == _previewRequestId)
+        {
+            PreviewContent = content;
         }
     }
 
@@ -271,7 +340,9 @@ public sealed partial class SearchPopupViewModel : ObservableObject
         SelectedIndex = row.SelectableIndex;
     }
 
-    private void ChooseSelected()
+    /// <summary>Ctrl+Enter (or the preview's Copy button): copy the current selection's content to the clipboard directly, preview or no preview.</summary>
+    [RelayCommand]
+    private void CopySelected()
     {
         if (SelectedIndex < 0 || SelectedIndex >= _selectable.Count)
         {

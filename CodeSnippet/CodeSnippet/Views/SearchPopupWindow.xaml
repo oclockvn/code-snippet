@@ -82,6 +82,7 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
             <!-- red top rule -->
@@ -158,7 +159,7 @@
                     </StackPanel>
                     <StackPanel Grid.Column="2" Margin="0,14,0,14">
                         <TextBlock Text="03" FontSize="11" FontWeight="Bold" Foreground="{StaticResource Neutral600}" Margin="0,0,0,6"/>
-                        <TextBlock Text="Enter copies the note's content. Paste with Ctrl + V wherever you are." FontSize="12.5"
+                        <TextBlock Text="Enter previews a note; Ctrl + Enter copies it, then paste with Ctrl + V." FontSize="12.5"
                                    Foreground="{StaticResource Neutral300}" TextWrapping="Wrap"/>
                     </StackPanel>
                 </Grid>
@@ -195,25 +196,56 @@
                 <Rectangle Grid.Row="1" Fill="{StaticResource ColorAccent}"/>
             </Grid>
 
+            <!-- inline preview: opened with Enter, follows whatever row is currently highlighted -->
+            <Border Grid.Row="3" BorderBrush="{StaticResource DarkDividerFaint}" BorderThickness="0,1,0,0"
+                    Visibility="{Binding IsPreviewOpen, Converter={StaticResource BoolToVisibilityConverter}}">
+                <Grid Margin="20,14">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Grid Grid.Row="0" Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="{Binding SelectedFile.Name}" FontSize="13" FontWeight="Bold"
+                                   Foreground="{StaticResource Neutral200}" VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"/>
+                        <Button Grid.Column="1" Content="Copy" Style="{StaticResource BtnGhost}" Padding="10,4" FontSize="10.5"
+                                Command="{Binding CopySelectedCommand}"/>
+                    </Grid>
+                    <ScrollViewer Grid.Row="1" MaxHeight="220" VerticalScrollBarVisibility="Auto">
+                        <TextBlock Text="{Binding PreviewContent}" FontFamily="Consolas" FontSize="11.5" LineHeight="18"
+                                   Foreground="{StaticResource Neutral300}" TextWrapping="Wrap"/>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+
             <!-- footer: keybind hints + status (Resting / Typing) -->
-            <Border Grid.Row="3" BorderBrush="{StaticResource DarkDividerFaint}" BorderThickness="0,1,0,0" Padding="20,10"
+            <Border Grid.Row="4" BorderBrush="{StaticResource DarkDividerFaint}" BorderThickness="0,1,0,0" Padding="20,10"
                     Visibility="{Binding IsResultsVisible, Converter={StaticResource BoolToVisibilityConverter}}">
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                     <TextBlock Text="↑ ↓  Move" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource Neutral500}" Margin="0,0,16,0"/>
-                    <TextBlock Text="⏎  Copy" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource Neutral500}" Margin="0,0,16,0"/>
-                    <TextBlock Text="Esc  Close" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource Neutral500}" Margin="0,0,16,0"/>
+                    <TextBlock Text="⏎  Preview" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource Neutral500}" Margin="0,0,16,0"
+                               Visibility="{Binding IsPreviewOpen, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}"/>
+                    <TextBlock Text="Ctrl + ⏎  Copy" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource Neutral500}" Margin="0,0,16,0"/>
+                    <TextBlock Text="Esc  Close" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource Neutral500}" Margin="0,0,16,0"
+                               Visibility="{Binding IsPreviewOpen, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}"/>
+                    <TextBlock Text="Esc  Back" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource Neutral500}" Margin="0,0,16,0"
+                               Visibility="{Binding IsPreviewOpen, Converter={StaticResource BoolToVisibilityConverter}}"/>
                     <TextBlock Text="{Binding StatusMessage}" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource Accent400}"/>
                 </StackPanel>
             </Border>
 
             <!-- footer: no-match hints -->
-            <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="20,10"
+            <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="20,10"
                         Visibility="{Binding State, Converter={StaticResource EnumEqualsVisibilityConverter}, ConverterParameter=NoMatch}">
                 <TextBlock Text="Esc  Close" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource Neutral500}"/>
             </StackPanel>
 
             <!-- footer: first-run hints -->
-            <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="20,10"
+            <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="20,10"
                         Visibility="{Binding State, Converter={StaticResource EnumEqualsVisibilityConverter}, ConverterParameter=FirstRun}">
                 <TextBlock Text="Esc  Close" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource Neutral500}"/>
             </StackPanel>
