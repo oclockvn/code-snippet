@@ -25,7 +25,7 @@ public partial class App : Application
     private SearchPopupWindow _searchPopupWindow = null!;
     private SettingsWindow? _settingsWindow;
 
-    protected override void OnStartup(StartupEventArgs e)
+    protected override async void OnStartup(StartupEventArgs e)
     {
         base.OnStartup(e);
 
@@ -38,7 +38,7 @@ public partial class App : Application
         }
 
         _settingsStore = new AppSettingsStore();
-        _settings = _settingsStore.Load();
+        _settings = await _settingsStore.LoadAsync();
 
         _vaultIndex = new VaultIndexService();
         _vaultIndex.SetVaultPath(_settings.VaultPath);
@@ -88,7 +88,7 @@ public partial class App : Application
 
         _settings.HotkeyModifiers = (uint)modifiers;
         _settings.HotkeyKey = (int)key;
-        _settingsStore.Save(_settings);
+        _ = _settingsStore.SaveAsync(_settings);
     }
 
     private void OnSettingsRequestedFromPopup()
@@ -120,7 +120,7 @@ public partial class App : Application
     private void ApplyVaultPath(string vaultPath)
     {
         _settings.VaultPath = vaultPath;
-        _settingsStore.Save(_settings);
+        _ = _settingsStore.SaveAsync(_settings);
         _vaultIndex.SetVaultPath(vaultPath);
     }
 

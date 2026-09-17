@@ -18,13 +18,13 @@ public sealed class AppSettingsStore
         _filePath = filePath;
     }
 
-    public AppSettings Load()
+    public async Task<AppSettings> LoadAsync()
     {
         try
         {
             if (File.Exists(_filePath))
             {
-                var json = File.ReadAllText(_filePath);
+                var json = await File.ReadAllTextAsync(_filePath);
                 var settings = JsonSerializer.Deserialize(json, AppSettingsJsonContext.Default.AppSettings);
                 if (settings is not null)
                 {
@@ -40,7 +40,7 @@ public sealed class AppSettingsStore
         return new AppSettings();
     }
 
-    public void Save(AppSettings settings)
+    public async Task SaveAsync(AppSettings settings)
     {
         try
         {
@@ -51,7 +51,7 @@ public sealed class AppSettingsStore
             }
 
             var json = JsonSerializer.Serialize(settings, AppSettingsJsonContext.Default.AppSettings);
-            File.WriteAllText(_filePath, json);
+            await File.WriteAllTextAsync(_filePath, json);
         }
         catch (Exception)
         {
