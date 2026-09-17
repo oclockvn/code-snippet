@@ -19,7 +19,7 @@
 
     <Window.Resources>
 
-        <!-- One prompt row: a clickable item row with title-highlight. -->
+        <!-- One result row: a clickable item row with name-highlight, plus its containing folder. -->
         <DataTemplate DataType="{x:Type vm:SearchResultRow}">
             <Button Command="{Binding DataContext.ChooseRowCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                     CommandParameter="{Binding}"
@@ -30,19 +30,20 @@
                                 BorderBrush="{StaticResource DarkDividerFaint}">
                             <Grid>
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="16"/>
+                                    <ColumnDefinition Width="Auto" MinWidth="16"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
                                 <TextBlock x:Name="NumberText" Grid.Column="0" Text="{Binding DisplayNumber}"
                                            FontSize="11" FontWeight="Bold" Foreground="{StaticResource Neutral600}"
-                                           VerticalAlignment="Top" Margin="0,3,0,0"/>
+                                           VerticalAlignment="Top" TextAlignment="Right" Margin="0,3,10,0"/>
                                 <StackPanel Grid.Column="1" VerticalAlignment="Top">
                                     <TextBlock x:Name="TitleText" FontSize="14.5" FontWeight="SemiBold"
                                                Foreground="{StaticResource Neutral200}"
                                                behaviors:TitleHighlightBehavior.Segments="{Binding TitleSegments, Mode=OneWay}"/>
-                                    <TextBlock x:Name="BodyText" Text="{Binding BodyPreview}" FontSize="12"
+                                    <TextBlock x:Name="FolderText" Text="{Binding FolderPath}" FontSize="12"
                                                Foreground="{StaticResource Neutral500}" Margin="0,2,0,0"
-                                               TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"/>
+                                               TextWrapping="NoWrap" TextTrimming="CharacterEllipsis"
+                                               Visibility="{Binding HasFolderPath, Converter={StaticResource BoolToVisibilityConverter}}"/>
                                 </StackPanel>
                             </Grid>
                         </Border>
@@ -54,7 +55,7 @@
                                 <Setter TargetName="RowBorder" Property="Background" Value="{StaticResource ColorAccent}"/>
                                 <Setter TargetName="RowBorder" Property="BorderBrush" Value="{StaticResource Neutral100}"/>
                                 <Setter TargetName="TitleText" Property="Foreground" Value="{StaticResource Neutral100}"/>
-                                <Setter TargetName="BodyText" Property="Foreground" Value="#D8F8F4F4"/>
+                                <Setter TargetName="FolderText" Property="Foreground" Value="#D8F8F4F4"/>
                                 <Setter TargetName="NumberText" Property="Foreground" Value="#BFF8F4F4"/>
                             </DataTrigger>
                         </ControlTemplate.Triggers>
@@ -76,33 +77,19 @@
         </Border.CacheMode>
 
         <Grid>
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition>
-                    <ColumnDefinition.Style>
-                        <Style TargetType="ColumnDefinition">
-                            <Setter Property="Width" Value="288"/>
-                            <Style.Triggers>
-                                <DataTrigger Binding="{Binding IsPreviewVisible}" Value="False">
-                                    <Setter Property="Width" Value="0"/>
-                                </DataTrigger>
-                            </Style.Triggers>
-                        </Style>
-                    </ColumnDefinition.Style>
-                </ColumnDefinition>
-            </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
                 <RowDefinition Height="4"/>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
             <!-- red top rule -->
-            <Rectangle Grid.Row="0" Grid.ColumnSpan="2" Fill="{StaticResource ColorAccent}"/>
+            <Rectangle Grid.Row="0" Fill="{StaticResource ColorAccent}"/>
 
             <!-- header: icon + query + count badge -->
-            <Grid Grid.Row="1" Grid.ColumnSpan="2" Margin="20,16" Visibility="{Binding IsHeaderVisible, Converter={StaticResource BoolToVisibilityConverter}}">
+            <Grid Grid.Row="1" Margin="20,16" Visibility="{Binding IsHeaderVisible, Converter={StaticResource BoolToVisibilityConverter}}">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
@@ -110,7 +97,7 @@
                 </Grid.ColumnDefinitions>
                 <Rectangle Grid.Column="0" Width="10" Height="24" Fill="{StaticResource ColorAccent}" Margin="0,0,14,0" VerticalAlignment="Center"/>
                 <Grid Grid.Column="1" VerticalAlignment="Center">
-                    <TextBlock Text="Search prompts" FontSize="22" FontWeight="SemiBold" Foreground="{StaticResource Neutral700}"
+                    <TextBlock Text="Search vault" FontSize="22" FontWeight="SemiBold" Foreground="{StaticResource Neutral700}"
                                IsHitTestVisible="False"
                                Visibility="{Binding IsQueryEmpty, Converter={StaticResource BoolToVisibilityConverter}}"/>
                     <TextBox x:Name="SearchBox" Text="{Binding Query, UpdateSourceTrigger=PropertyChanged}"
@@ -123,7 +110,7 @@
             </Grid>
 
             <!-- body: results list -->
-            <ScrollViewer Grid.Row="2" Grid.Column="0" MaxHeight="480" VerticalScrollBarVisibility="Auto"
+            <ScrollViewer Grid.Row="2" MaxHeight="480" VerticalScrollBarVisibility="Auto"
                           Visibility="{Binding IsResultsVisible, Converter={StaticResource BoolToVisibilityConverter}}">
                 <ScrollViewer.Resources>
                     <Style TargetType="ScrollBar" BasedOn="{StaticResource ModernScrollBar}"/>
@@ -140,107 +127,19 @@
                 </ItemsControl>
             </ScrollViewer>
 
-            <!-- body: preview pane -->
-            <Grid Grid.Row="2" Grid.Column="1" Margin="18,15" Visibility="{Binding IsPreviewVisible, Converter={StaticResource BoolToVisibilityConverter}}">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="Auto"/>
-                </Grid.RowDefinitions>
-
-                <Grid Grid.Row="0" Margin="0,0,0,10">
-                    <ItemsControl ItemsSource="{Binding SelectedPrompt.Tags}" HorizontalAlignment="Left"
-                                  Visibility="{Binding IsEditing, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <WrapPanel/>
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <StackPanel Orientation="Horizontal" Margin="0,0,10,0">
-                                    <TextBlock Text="#" FontSize="10" FontWeight="Bold" Foreground="{StaticResource Accent400}"/>
-                                    <TextBlock Text="{Binding Converter={StaticResource UpperCaseConverter}}" FontSize="10"
-                                               FontWeight="Bold" Foreground="{StaticResource Accent400}"/>
-                                </StackPanel>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                    <TextBlock Text="Editing" HorizontalAlignment="Left" FontSize="10" FontWeight="Bold"
-                               Foreground="{StaticResource Accent400}"
-                               Visibility="{Binding IsEditing, Converter={StaticResource BoolToVisibilityConverter}}"/>
-                    <TextBlock HorizontalAlignment="Right" FontSize="10" FontWeight="Bold"
-                               Foreground="{StaticResource Accent400}"
-                               Visibility="{Binding IsEditing, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}">
-                        <Run Text="{Binding PreviewCharCount, Mode=OneWay}"/><Run Text=" chars"/>
-                    </TextBlock>
-                </Grid>
-
-                <!-- readonly view -->
-                <TextBlock Grid.Row="1" Text="{Binding SelectedPrompt.Body}" FontFamily="Consolas" FontSize="11.5"
-                           LineHeight="19" Foreground="{StaticResource Neutral300}" TextWrapping="Wrap"
-                           MaxHeight="260" TextTrimming="CharacterEllipsis"
-                           Visibility="{Binding IsEditing, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}"/>
-
-                <!-- edit view: title/body/tags textarea, replaces row 1 -->
-                <StackPanel Grid.Row="1"
-                            Visibility="{Binding IsEditing, Converter={StaticResource BoolToVisibilityConverter}}">
-                    <TextBlock Text="TITLE" FontSize="9.5" FontWeight="Bold" Foreground="{StaticResource Neutral600}" Margin="0,0,0,5"/>
-                    <TextBox Text="{Binding EditTitle, UpdateSourceTrigger=PropertyChanged}"
-                             FontSize="13" FontWeight="SemiBold" Padding="8,6" Margin="0,0,0,12"
-                             Background="#14F8F4F4" Foreground="{StaticResource Neutral100}" CaretBrush="{StaticResource ColorAccent}"
-                             BorderBrush="{StaticResource DarkDivider}" BorderThickness="1"/>
-
-                    <TextBlock Text="BODY" FontSize="9.5" FontWeight="Bold" Foreground="{StaticResource Neutral600}" Margin="0,0,0,5"/>
-                    <TextBox Text="{Binding EditBody, UpdateSourceTrigger=PropertyChanged}"
-                             FontFamily="Consolas" FontSize="11.5" Padding="8,6" Margin="0,0,0,12"
-                             Background="#14F8F4F4" Foreground="{StaticResource Neutral100}" CaretBrush="{StaticResource ColorAccent}"
-                             BorderBrush="{StaticResource DarkDivider}" BorderThickness="1"
-                             AcceptsReturn="True" TextWrapping="Wrap" VerticalScrollBarVisibility="Auto" Height="140"/>
-
-                    <TextBlock Text="TAGS — COMMA SEPARATED" FontSize="9.5" FontWeight="Bold" Foreground="{StaticResource Neutral600}" Margin="0,0,0,5"/>
-                    <TextBox Text="{Binding EditTags, UpdateSourceTrigger=PropertyChanged}"
-                             FontSize="12" Padding="8,6"
-                             Background="#14F8F4F4" Foreground="{StaticResource Neutral100}" CaretBrush="{StaticResource ColorAccent}"
-                             BorderBrush="{StaticResource DarkDivider}" BorderThickness="1"/>
-                </StackPanel>
-
-                <!-- Save / Cancel — edit mode only -->
-                <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,12,0,0"
-                            Visibility="{Binding IsEditing, Converter={StaticResource BoolToVisibilityConverter}}">
-                    <Button Content="Save" Style="{StaticResource BtnPrimary}" Command="{Binding SaveEditCommand}" Margin="0,0,8,0"/>
-                    <Button Content="Cancel" Style="{StaticResource BtnSecondary}" Foreground="{StaticResource Neutral200}"
-                            BorderBrush="#66F8F4F4" Command="{Binding CancelEditCommand}"/>
-                </StackPanel>
-
-                <!-- Edit / Delete — pinned at the bottom of the pane, right-aligned -->
-                <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,14,0,0">
-                    <Button Content="Edit" Style="{StaticResource BtnGhost}" Padding="8,3" FontSize="10"
-                            Command="{Binding EditSelectedCommand}" Margin="0,0,10,0"
-                            Visibility="{Binding IsEditing, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}"/>
-                    <Button Content="Delete" Style="{StaticResource BtnSecondary}" Padding="8,3" FontSize="10"
-                            Foreground="{StaticResource Accent400}" BorderBrush="#59FF9783"
-                            Command="{Binding DeleteSelectedCommand}"/>
-                </StackPanel>
-            </Grid>
-
             <!-- no-match state -->
-            <StackPanel Grid.Row="2" Grid.ColumnSpan="2" Margin="24,20" MinWidth="672"
+            <StackPanel Grid.Row="2" Margin="24,20" MinWidth="672"
                         Visibility="{Binding State, Converter={StaticResource EnumEqualsVisibilityConverter}, ConverterParameter=NoMatch}">
                 <TextBlock Text="Nothing matches that." FontSize="15" FontWeight="SemiBold" Foreground="{StaticResource Neutral200}" Margin="0,0,0,6"/>
-                <TextBlock TextWrapping="Wrap" FontSize="12.5" Foreground="{StaticResource Neutral500}" MaxWidth="480">
-                    <Run Text="Press Enter to start a new prompt titled &quot;"/><Run Text="{Binding Query, Mode=OneWay}" Foreground="{StaticResource Neutral200}"/><Run
-                        Text="&quot;, or keep typing to widen the search."/>
-                </TextBlock>
+                <TextBlock Text="Keep typing to widen the search." FontSize="12.5" Foreground="{StaticResource Neutral500}" MaxWidth="480"/>
             </StackPanel>
 
             <!-- first-run state -->
-            <StackPanel Grid.Row="2" Grid.ColumnSpan="2" Margin="24,26,24,8" MinWidth="672"
+            <StackPanel Grid.Row="2" Margin="24,26,24,8" MinWidth="672"
                         Visibility="{Binding State, Converter={StaticResource EnumEqualsVisibilityConverter}, ConverterParameter=FirstRun}">
-                <TextBlock Text="NO PROMPTS YET" FontSize="11" FontWeight="Bold" Foreground="{StaticResource Accent400}" Margin="0,0,0,10"/>
-                <TextBlock Text="Three keys, and the prompt is on your clipboard." FontSize="26" FontWeight="ExtraBold"
-                           Foreground="{StaticResource Neutral100}" TextWrapping="Wrap" MaxWidth="380" Margin="0,0,0,24"/>
+                <TextBlock Text="NO VAULT CONFIGURED" FontSize="11" FontWeight="Bold" Foreground="{StaticResource Accent400}" Margin="0,0,0,10"/>
+                <TextBlock Text="Point this at your Obsidian vault, then search notes by name." FontSize="26" FontWeight="ExtraBold"
+                           Foreground="{StaticResource Neutral100}" TextWrapping="Wrap" MaxWidth="500" Margin="0,0,0,24"/>
 
                 <Grid>
                     <Grid.ColumnDefinitions>
@@ -250,7 +149,7 @@
                     </Grid.ColumnDefinitions>
                     <StackPanel Grid.Column="0" Margin="0,14,16,14">
                         <TextBlock Text="01" FontSize="11" FontWeight="Bold" Foreground="{StaticResource Neutral600}" Margin="0,0,0,6"/>
-                        <TextBlock Text="Add a prompt right here, or import a JSON file you already have." FontSize="12.5"
+                        <TextBlock Text="Open Settings and choose your vault folder." FontSize="12.5"
                                    Foreground="{StaticResource Neutral300}" TextWrapping="Wrap"/>
                     </StackPanel>
                     <StackPanel Grid.Column="1" Margin="0,14,16,14">
@@ -260,22 +159,19 @@
                     </StackPanel>
                     <StackPanel Grid.Column="2" Margin="0,14,0,14">
                         <TextBlock Text="03" FontSize="11" FontWeight="Bold" Foreground="{StaticResource Neutral600}" Margin="0,0,0,6"/>
-                        <TextBlock Text="Enter copies. Paste with Ctrl + V wherever you are." FontSize="12.5"
+                        <TextBlock Text="Enter previews a note; Ctrl + Enter copies it, then paste with Ctrl + V." FontSize="12.5"
                                    Foreground="{StaticResource Neutral300}" TextWrapping="Wrap"/>
                     </StackPanel>
                 </Grid>
 
                 <StackPanel Orientation="Horizontal" Margin="0,18,0,0">
-                    <Button Content="⏎  Add first prompt" Style="{StaticResource BtnPrimary}"
-                            Command="{Binding ConfirmCommand}" Margin="0,0,10,0"/>
-                    <Button Content="I  Import JSON" Style="{StaticResource BtnSecondary}"
-                            Foreground="{StaticResource Neutral200}" BorderBrush="#66F8F4F4"
-                            Command="{Binding RequestImportCommand}"/>
+                    <Button Content="⏎  Open Settings" Style="{StaticResource BtnPrimary}"
+                            Command="{Binding OpenSettingsCommand}"/>
                 </StackPanel>
             </StackPanel>
 
             <!-- copied confirmation -->
-            <Grid Grid.Row="2" Grid.ColumnSpan="2" MinWidth="672"
+            <Grid Grid.Row="2" MinWidth="672"
                   Visibility="{Binding State, Converter={StaticResource EnumEqualsVisibilityConverter}, ConverterParameter=Copied}">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/>
@@ -300,40 +196,79 @@
                 <Rectangle Grid.Row="1" Fill="{StaticResource ColorAccent}"/>
             </Grid>
 
-            <!-- footer: keybind hints + library actions (Resting / Typing), combined -->
-            <Border Grid.Row="3" Grid.ColumnSpan="2" BorderBrush="{StaticResource DarkDividerFaint}" BorderThickness="0,1,0,0" Padding="20,10"
-                    Visibility="{Binding IsResultsVisible, Converter={StaticResource BoolToVisibilityConverter}}">
-                <Grid>
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*"/>
-                        <ColumnDefinition Width="Auto"/>
-                    </Grid.ColumnDefinitions>
-                    <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock Text="↑ ↓  Move" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource Neutral500}" Margin="0,0,16,0"/>
-                        <TextBlock Text="⏎  Copy" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource Neutral500}" Margin="0,0,16,0"/>
-                        <TextBlock Text="Esc  Close" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource Neutral500}" Margin="0,0,16,0"/>
-                        <TextBlock Text="{Binding EditStatusMessage}" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource Accent400}"/>
-                    </StackPanel>
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                        <Button Content="+ New" Style="{StaticResource BtnGhost}" Padding="8,5" FontSize="10.5" Command="{Binding NewPromptCommand}" Margin="0,0,10,0"/>
-                        <Button Content="Import" Style="{StaticResource BtnGhost}" Padding="8,5" FontSize="10.5" Command="{Binding ImportPromptsCommand}" Margin="0,0,10,0"/>
-                        <Button Content="Export" Style="{StaticResource BtnGhost}" Padding="8,5" FontSize="10.5" Command="{Binding ExportPromptsCommand}"/>
-                    </StackPanel>
+            <!-- inline preview: opened with Enter, follows whatever row is currently highlighted -->
+            <Border Grid.Row="3" BorderBrush="{StaticResource DarkDividerFaint}" BorderThickness="0,1,0,0"
+                    Visibility="{Binding IsPreviewOpen, Converter={StaticResource BoolToVisibilityConverter}}">
+                <Grid Margin="20,14">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <Grid Grid.Row="0" Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0" Text="{Binding SelectedFile.Name}" FontSize="13" FontWeight="Bold"
+                                   Foreground="{StaticResource Neutral200}" VerticalAlignment="Center"
+                                   TextTrimming="CharacterEllipsis"/>
+                        <Button Grid.Column="1" Content="Copy" Style="{StaticResource BtnGhost}" Padding="10,4" FontSize="10.5"
+                                Command="{Binding CopySelectedCommand}"/>
+                    </Grid>
+                    <ScrollViewer Grid.Row="1" MaxHeight="220" VerticalScrollBarVisibility="Auto">
+                        <ScrollViewer.Resources>
+                            <Style TargetType="ScrollBar" BasedOn="{StaticResource ModernScrollBar}"/>
+                        </ScrollViewer.Resources>
+                        <TextBox Text="{Binding PreviewContent, Mode=OneWay}" FontFamily="Consolas" FontSize="11.5"
+                                 Foreground="{StaticResource Neutral300}" TextWrapping="Wrap"
+                                 Background="Transparent" BorderThickness="0" Padding="0"
+                                 IsReadOnly="True" IsUndoEnabled="False" UndoLimit="0"
+                                 SelectionBrush="{StaticResource ColorAccent}"
+                                 VerticalScrollBarVisibility="Disabled" HorizontalScrollBarVisibility="Disabled"/>
+                    </ScrollViewer>
                 </Grid>
             </Border>
 
+            <!-- footer: keybind hints + status (Resting / Typing) -->
+            <Border Grid.Row="4" BorderBrush="{StaticResource DarkDividerFaint}" BorderThickness="0,1,0,0" Padding="20,10"
+                    Visibility="{Binding IsResultsVisible, Converter={StaticResource BoolToVisibilityConverter}}">
+                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                    <TextBlock Text="↑ ↓  Move" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource Neutral500}" Margin="0,0,16,0"/>
+                    <TextBlock Text="⏎  Preview" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource Neutral500}" Margin="0,0,16,0"
+                               Visibility="{Binding IsPreviewOpen, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}"/>
+                    <TextBlock Text="Ctrl + ⏎  Copy" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource Neutral500}" Margin="0,0,16,0"/>
+                    <TextBlock Text="Esc  Close" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource Neutral500}" Margin="0,0,16,0"
+                               Visibility="{Binding IsPreviewOpen, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}"/>
+                    <TextBlock Text="Esc  Back" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource Neutral500}" Margin="0,0,16,0"
+                               Visibility="{Binding IsPreviewOpen, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                    <TextBlock Text="{Binding StatusMessage}" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource Accent400}"/>
+                </StackPanel>
+            </Border>
+
             <!-- footer: no-match hints -->
-            <StackPanel Grid.Row="3" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="20,10"
+            <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="20,10"
                         Visibility="{Binding State, Converter={StaticResource EnumEqualsVisibilityConverter}, ConverterParameter=NoMatch}">
-                <TextBlock Text="⏎  New prompt" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource Neutral500}" Margin="0,0,20,0"/>
                 <TextBlock Text="Esc  Close" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource Neutral500}"/>
             </StackPanel>
 
             <!-- footer: first-run hints -->
-            <StackPanel Grid.Row="3" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="20,10"
+            <StackPanel Grid.Row="4" Orientation="Horizontal" Margin="20,10"
                         Visibility="{Binding State, Converter={StaticResource EnumEqualsVisibilityConverter}, ConverterParameter=FirstRun}">
                 <TextBlock Text="Esc  Close" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource Neutral500}"/>
             </StackPanel>
+
+            <!-- footer: settings shortcut — sits on top of whichever footer above is active -->
+            <Button Grid.Row="4" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,14,0"
+                    Style="{StaticResource BtnIconGhost}" Command="{Binding OpenSettingsCommand}"
+                    ToolTip="Settings">
+                <Viewbox Width="14" Height="14">
+                    <Canvas Width="24" Height="24">
+                        <Path Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                              StrokeThickness="2" StrokeStartLineCap="Round" StrokeEndLineCap="Round" StrokeLineJoin="Round"
+                              Data="M12 15a3 3 0 100-6 3 3 0 000 6z M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82A1.65 1.65 0 003 13.09H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+                    </Canvas>
+                </Viewbox>
+            </Button>
 
         </Grid>
     </Border>

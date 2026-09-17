@@ -99,6 +99,19 @@
         </Style.Triggers>
     </Style>
 
+    <!-- Small icon-only button (e.g. the popup's settings gear). Icon glyphs bind their
+         Stroke/Fill to the button's own Foreground so this one trigger drives both. -->
+    <Style x:Key="BtnIconGhost" TargetType="Button" BasedOn="{StaticResource BtnBase}">
+        <Setter Property="Foreground" Value="{StaticResource Neutral500}"/>
+        <Setter Property="Padding" Value="5"/>
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Background" Value="#1AEC3013"/>
+                <Setter Property="Foreground" Value="{StaticResource ColorAccent}"/>
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
     <!-- ============ Inputs ============ -->
 
     <Style x:Key="InputStyle" TargetType="TextBox">

@@ -30,7 +30,7 @@ public sealed class TrayIconService : IDisposable
     {
         var menu = new ContextMenu();
 
-        var search = new MenuItem { Header = "Search prompts" };
+        var search = new MenuItem { Header = "Search vault" };
         search.Click += (_, _) => SearchRequested?.Invoke(this, EventArgs.Empty);
         menu.Items.Add(search);
 

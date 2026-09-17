@@ -8,5 +8,6 @@ public class AppSettings
     /// <summary>The <see cref="System.Windows.Input.Key"/> enum value, stored as its underlying int.</summary>
     public int HotkeyKey { get; set; } = 53; // Key.J
 
-    public bool ShowPreviewPane { get; set; } = true;
+    /// <summary>Root folder to index for search (e.g. an Obsidian vault). Empty until configured in Settings.</summary>
+    public string VaultPath { get; set; } = string.Empty;
 }
