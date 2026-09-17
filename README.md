@@ -12,8 +12,9 @@ Default hotkey: **Alt+Shift+J** (rebindable from Settings).
 
 ## v1 vs v2
 
-**v2 (this branch/release)** rebuilt the app around Obsidian vault search: fuzzy filename search
-over a folder of markdown files, copy-to-clipboard on Enter, nothing persisted by the app itself.
+**[v2](https://github.com/oclockvn/code-snippet/releases/tag/v2.0.0) (current)** rebuilt the app
+around Obsidian vault search: fuzzy filename search over a folder of markdown files,
+copy-to-clipboard on Enter, nothing persisted by the app itself.
 
 **v1** was the original single-JSON-file prompt library (add/edit/tag/search prompts stored in one
 local JSON file) — no vault, no external files. If you just want a small, self-contained prompt
