@@ -19,7 +19,7 @@ public partial class SearchPopupWindow : Window
         _viewModel = viewModel;
         DataContext = _viewModel;
 
-        _viewModel.Cancelled += HideBack;
+        _viewModel.Cancelled += HideAndReset;
         _viewModel.PropertyChanged += OnViewModelPropertyChanged;
     }
 
@@ -46,10 +46,11 @@ public partial class SearchPopupWindow : Window
         });
     }
 
+    // State (query text, results, preview) is already clean by the time this runs — HideAndReset
+    // reset it on the way out last time, off the hotkey-press critical path. So showing again is just
+    // window plumbing: no Reindex/RefreshResults cost paid here.
     public void ShowForHotkey()
     {
-        _viewModel.Reset();
-
         PositionOnActiveScreen();
         Visibility = Visibility.Visible;
         Activate();
@@ -64,7 +65,16 @@ public partial class SearchPopupWindow : Window
         Top = workArea.Top + ((workArea.Height - Height) / 3);
     }
 
-    private void HideBack() => Visibility = Visibility.Hidden;
+    // Clears the query/results/preview and re-reindexes the vault here, right before hiding, rather
+    // than on the next ShowForHotkey — nobody's watching the popup while it's hidden, so the
+    // Reindex/RefreshResults cost lands off the hotkey-press latency path instead of on it. Every
+    // path that hides this window (Cancel, deactivate, opening Settings from the popup) must go
+    // through this rather than a raw Hide(), or the next ShowForHotkey will show stale state.
+    public void HideAndReset()
+    {
+        _viewModel.Reset();
+        Visibility = Visibility.Hidden;
+    }
 
     private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
     {
@@ -112,7 +122,7 @@ public partial class SearchPopupWindow : Window
         base.OnDeactivated(e);
         if (Visibility == Visibility.Visible)
         {
-            HideBack();
+            HideAndReset();
         }
     }
 }

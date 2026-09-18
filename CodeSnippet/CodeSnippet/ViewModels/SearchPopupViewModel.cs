@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.IO;
+using System.Threading;
 using System.Windows.Threading;
 using CodeSnippet.Models;
 using CodeSnippet.Services;
@@ -18,7 +19,12 @@ public sealed partial class SearchPopupViewModel : ObservableObject
     private readonly List<VaultFileMatch> _searchBuffer = new();
     private readonly List<SearchResultRow> _selectable = new();
     private readonly DispatcherTimer _toastTimer;
-    private int _previewRequestId;
+    private CancellationTokenSource? _previewCts;
+
+    // How long a highlighted row has to stay highlighted before its preview is actually read from
+    // disk. Arrow-key navigation moves the highlight faster than this, so passing-through rows never
+    // trigger a read — only the row the user settles on does.
+    private static readonly TimeSpan PreviewDebounceDelay = TimeSpan.FromMilliseconds(80);
 
     [ObservableProperty]
     private string _query = string.Empty;
@@ -86,6 +92,13 @@ public sealed partial class SearchPopupViewModel : ObservableObject
         StatusMessage = string.Empty;
         IsPreviewOpen = false;
         PreviewContent = string.Empty;
+        _previewCts?.Cancel();
+        // Force RefreshResults' closing "SelectedIndex = 0" below to be a genuine change even when
+        // the popup was already left on row 0 — the generated property setter no-ops an unchanged
+        // value, which would silently skip the PropertyChanged that SearchPopupWindow listens for to
+        // scroll the list back into view. Without this, reopening after scrolling down (without ever
+        // changing the selection) would show item 0 selected but the list still scrolled down.
+        SelectedIndex = -1;
         // Vault files change externally (Obsidian, sync, the user) while the popup is closed, so
         // pick up any changes now rather than trusting whatever was indexed at app startup.
         _vaultIndex.Reindex();
@@ -130,7 +143,7 @@ public sealed partial class SearchPopupViewModel : ObservableObject
         // click, or a new search result taking the top slot — not just the file it was opened for.
         if (IsPreviewOpen)
         {
-            _ = LoadPreviewAsync(SelectedFile);
+            RequestPreviewLoad(SelectedFile);
         }
     }
 
@@ -187,12 +200,14 @@ public sealed partial class SearchPopupViewModel : ObservableObject
     }
 
     // No LINQ / no sort here: VaultIndexService already keeps Files sorted most-recently-modified
-    // first. Uncapped (unlike the typed-search path) since this only rebuilds once per popup open,
-    // not per keystroke, and the ItemsControl is virtualized so offscreen rows cost nothing to render.
+    // first. Capped like the typed-search path — RefreshResults runs on every keystroke, including
+    // the backspace that empties the query, not just once per popup open, so an uncapped rebuild here
+    // paid a real WPF layout/virtualization cost on every one of those.
     private void BuildRestingRows()
     {
         var files = _vaultIndex.Files;
-        for (var i = 0; i < files.Count; i++)
+        var count = Math.Min(files.Count, MaxVisibleResults);
+        for (var i = 0; i < count; i++)
         {
             AddItemRow(files[i], nameRanges: null);
         }
@@ -292,37 +307,66 @@ public sealed partial class SearchPopupViewModel : ObservableObject
         IsPreviewOpen = open;
         if (open)
         {
-            _ = LoadPreviewAsync(SelectedFile);
+            // Opening the preview is a deliberate, one-shot action (Enter/click) — nothing to debounce
+            // against yet, so load immediately. Only subsequent highlight changes while it's already
+            // open (arrow-key navigation) go through the debounced path below.
+            RequestPreviewLoad(SelectedFile, immediate: true);
         }
         else
         {
+            _previewCts?.Cancel();
             PreviewContent = string.Empty;
         }
     }
 
-    private async Task LoadPreviewAsync(VaultFile? file)
+    // Cancels whatever preview load is in flight and starts a fresh one. Arrow-key navigation calls
+    // this on every row it passes through; with immediate: false, only the row the debounce delay
+    // expires on ever reaches the file read in LoadPreviewAsync below.
+    private void RequestPreviewLoad(VaultFile? file, bool immediate = false)
     {
-        var requestId = ++_previewRequestId;
+        _previewCts?.Cancel();
+        _previewCts?.Dispose();
+        var cts = new CancellationTokenSource();
+        _previewCts = cts;
+        _ = LoadPreviewAsync(file, immediate, cts.Token);
+    }
 
+    private async Task LoadPreviewAsync(VaultFile? file, bool immediate, CancellationToken cancellationToken)
+    {
         if (file is null)
         {
             PreviewContent = string.Empty;
             return;
         }
 
+        if (!immediate)
+        {
+            try
+            {
+                await Task.Delay(PreviewDebounceDelay, cancellationToken);
+            }
+            catch (TaskCanceledException)
+            {
+                // Superseded by a later highlight change before the debounce elapsed; no file read happened.
+                return;
+            }
+        }
+
         string content;
         try
         {
-            content = await File.ReadAllTextAsync(file.FullPath);
+            content = await File.ReadAllTextAsync(file.FullPath, cancellationToken);
+        }
+        catch (OperationCanceledException)
+        {
+            return;
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
             content = $"Couldn't read \"{file.Name}\" — it may have moved or been deleted.";
         }
 
-        // A later keystroke/arrow press may have moved the selection while this read was in
-        // flight; only the most recently requested file gets to write PreviewContent.
-        if (requestId == _previewRequestId)
+        if (!cancellationToken.IsCancellationRequested)
         {
             PreviewContent = content;
         }
