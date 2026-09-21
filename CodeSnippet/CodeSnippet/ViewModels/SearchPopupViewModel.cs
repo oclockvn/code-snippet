@@ -418,6 +418,41 @@ public sealed partial class SearchPopupViewModel : ObservableObject
         ShowToast($"Copied \"{file.Name}\"");
     }
 
+    /// <summary>Ctrl+Shift+Enter: copy the current selection's full text, dropping every line that starts with ``` (fence open/close lines).</summary>
+    [RelayCommand]
+    private void CopyWithoutFences()
+    {
+        if (SelectedIndex < 0 || SelectedIndex >= _selectable.Count)
+        {
+            return;
+        }
+
+        _ = CopyWithoutFencesAsync(_selectable[SelectedIndex].File);
+    }
+
+    private async Task CopyWithoutFencesAsync(VaultFile file)
+    {
+        string content;
+        try
+        {
+            content = await File.ReadAllTextAsync(file.FullPath);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            StatusMessage = $"Couldn't read \"{file.Name}\" — it may have moved or been deleted.";
+            _vaultIndex.Reindex();
+            RefreshResults();
+            return;
+        }
+
+        var kept = content.Replace("\r\n", "\n")
+            .Split('\n')
+            .Where(line => !line.TrimStart().StartsWith("```", StringComparison.Ordinal));
+        await _pasteService.CopyToClipboardAsync(string.Join('\n', kept));
+
+        ShowToast($"Copied \"{file.Name}\" (no fences)");
+    }
+
     /// <summary>Shift+Enter: copy the current selection's absolute file path to the clipboard.</summary>
     [RelayCommand]
     private void CopyFilePath()

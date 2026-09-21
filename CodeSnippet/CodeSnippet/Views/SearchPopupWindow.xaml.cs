@@ -94,6 +94,10 @@ public partial class SearchPopupWindow : Window
 
                 e.Handled = true;
                 break;
+            case Key.Enter when Keyboard.Modifiers == (ModifierKeys.Control | ModifierKeys.Shift):
+                _viewModel.CopyWithoutFencesCommand.Execute(null);
+                e.Handled = true;
+                break;
             case Key.Enter when Keyboard.Modifiers == ModifierKeys.Control:
                 _viewModel.CopySelectedCommand.Execute(null);
                 e.Handled = true;

@@ -211,6 +211,7 @@
                     <TextBlock Text="⏎  Preview" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource Neutral500}" Margin="0,0,16,0"
                                Visibility="{Binding IsPreviewOpen, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}"/>
                     <TextBlock Text="Ctrl + ⏎  Copy" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource Neutral500}" Margin="0,0,16,0"/>
+                    <TextBlock Text="Ctrl + Shift + ⏎  Copy no ```" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource Neutral500}" Margin="0,0,16,0"/>
                     <TextBlock Text="Shift + ⏎  Copy path" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource Neutral500}" Margin="0,0,16,0"/>
                     <TextBlock Text="Esc  Close" FontSize="10.5" FontWeight="SemiBold" Foreground="{StaticResource Neutral500}" Margin="0,0,16,0"
                                Visibility="{Binding IsPreviewOpen, Converter={StaticResource BoolToVisibilityConverter}, ConverterParameter=Invert}"/>
